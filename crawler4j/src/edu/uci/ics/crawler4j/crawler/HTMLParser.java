@@ -21,8 +21,10 @@ public class HTMLParser {
 	private TextExtractor textExtractor = new TextExtractor();
 
 	private LinkExtractor linkExtractor = new LinkExtractor();
+	
+	private static final int MAX_OUT_LINKS = Configurations.getIntProperty("fetcher.max_outlinks");
 
-	Set<String> urls;
+	private Set<String> urls;
 
 	public void parse(String htmlContent, String contextURL) {		
 		urls = new HashSet<String>();
@@ -52,7 +54,7 @@ public class HTMLParser {
 					&& hrefWithoutProtocol.indexOf("@") < 0) {
 				urls.add(URLCanonicalizer.getCanonicalURL(href, contextURL).toExternalForm());
 				urlCount++;
-				if (urlCount > Config.maxOutLinks) {
+				if (urlCount > MAX_OUT_LINKS) {
 					break;
 				}
 			}			

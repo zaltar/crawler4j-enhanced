@@ -26,7 +26,7 @@ public class Page {
 		if (totalsize > 0) {
 			this.bBuf = ByteBuffer.allocate(totalsize + 1024);
 		} else {
-			this.bBuf = ByteBuffer.allocate(Config.maxDownloadSize); 
+			this.bBuf = ByteBuffer.allocate(PageFetcher.MAX_DOWNLOAD_SIZE); 
 		}
 		final byte[] b = new byte[1024];
 		int len;

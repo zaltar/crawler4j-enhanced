@@ -174,4 +174,8 @@ public final class CrawlController {
 		}
 		PageFetcher.setPolitenessDelay(milliseconds);
 	}
+	
+	public void setProxy(String proxyHost, int proxyPort) {
+		PageFetcher.setProxy(proxyHost, proxyPort);
+	}
 }

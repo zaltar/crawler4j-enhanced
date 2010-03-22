@@ -1,11 +1,11 @@
 package edu.uci.ics.crawler4j.crawler;
 
-
 import java.io.IOException;
 import java.util.Date;
 
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.HttpVersion;
@@ -13,6 +13,7 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.conn.params.ConnManagerParams;
 import org.apache.http.conn.params.ConnPerRouteBean;
+import org.apache.http.conn.params.ConnRoutePNames;
 import org.apache.http.conn.scheme.PlainSocketFactory;
 import org.apache.http.conn.scheme.Scheme;
 import org.apache.http.conn.scheme.SchemeRegistry;
@@ -51,7 +52,11 @@ public final class PageFetcher {
 
 	private static long lastFetchTime = 0;
 
-	private static long politenessDelay = 200;
+	private static long politenessDelay = Configurations
+			.getIntProperty("fetcher.default_politeness_delay");
+
+	public static final int MAX_DOWNLOAD_SIZE = Configurations
+			.getIntProperty("fetcher.max_download_size");
 
 	public static long getPolitenessDelay() {
 		return politenessDelay;
@@ -67,18 +72,19 @@ public final class PageFetcher {
 		paramsBean.setVersion(HttpVersion.HTTP_1_1);
 		paramsBean.setContentCharset("UTF-8");
 		paramsBean.setUseExpectContinue(true);
-		params.setParameter("http.useragent",
-				"crawler4j (http://code.google.com/p/crawler4j/)");
-		params.setParameter("http.socket.timeout", Config.socketTimeOut);
-		params
-				.setParameter("http.connection.timeout",
-						Config.connectionTimeOut);
+		params.setParameter("http.useragent", Configurations
+				.getStringProperty("fetcher.user_agent"));
+		params.setParameter("http.socket.timeout", Configurations
+				.getIntProperty("fetcher.socket_timeout"));
+		params.setParameter("http.connection.timeout", Configurations
+				.getIntProperty("fetcher.connection_timeout"));
 
 		ConnPerRouteBean connPerRouteBean = new ConnPerRouteBean();
-		connPerRouteBean.setDefaultMaxPerRoute(Config.maxConnectionsPerHost);
+		connPerRouteBean.setDefaultMaxPerRoute(Configurations
+				.getIntProperty("fetcher.max_connections_per_host"));
 		ConnManagerParams.setMaxConnectionsPerRoute(params, connPerRouteBean);
-		ConnManagerParams.setMaxTotalConnections(params,
-				Config.maxTotalConnections);
+		ConnManagerParams.setMaxTotalConnections(params, Configurations
+				.getIntProperty("fetcher.max_total_connections"));
 
 		SchemeRegistry schemeRegistry = new SchemeRegistry();
 		schemeRegistry.register(new Scheme("http", PlainSocketFactory
@@ -91,7 +97,7 @@ public final class PageFetcher {
 
 	public static int fetch(Page result) {
 		try {
-			String toFetchURL = result.getWebURL().getURL();			
+			String toFetchURL = result.getWebURL().getURL();
 			HttpGet get = new HttpGet(toFetchURL);
 			try {
 				synchronized (mutex) {
@@ -150,7 +156,7 @@ public final class PageFetcher {
 							size = -1;
 						}
 					}
-					if (size > Config.maxDownloadSize) {
+					if (size > MAX_DOWNLOAD_SIZE) {
 						return PageFetchStatus.PageTooBig;
 					}
 
@@ -177,4 +183,11 @@ public final class PageFetcher {
 		}
 		return PageFetchStatus.UnknownError;
 	}
+
+	public static void setProxy(String proxyHost, int proxyPort) {
+		HttpHost proxy = new HttpHost(proxyHost, proxyPort);
+		httpclient.getParams().setParameter(ConnRoutePNames.DEFAULT_PROXY,
+				proxy);
+	}
+
 }
