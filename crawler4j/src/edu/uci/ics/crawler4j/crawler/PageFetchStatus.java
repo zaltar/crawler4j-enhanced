@@ -1,12 +1,11 @@
 package edu.uci.ics.crawler4j.crawler;
 
 /**
- *  
  * Copyright (C) 2010.
  * 
- * @author Yasser Ganjisaffar <yganjisa@uci.edu>
- *
+ * @author Yasser Ganjisaffar <yganjisa at uci dot edu>
  */
+
 
 public final class PageFetchStatus {
 	

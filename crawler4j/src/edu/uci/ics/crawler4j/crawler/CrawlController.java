@@ -178,4 +178,9 @@ public final class CrawlController {
 	public void setProxy(String proxyHost, int proxyPort) {
 		PageFetcher.setProxy(proxyHost, proxyPort);
 	}
+	
+	public static void setProxy(String proxyHost, int proxyPort,
+			String username, String password) {
+		PageFetcher.setProxy(proxyHost, proxyPort, username, password);
+	}
 }

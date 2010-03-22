@@ -5,10 +5,11 @@ import com.sleepycat.je.*;
 import edu.uci.ics.crawler4j.util.Util;
 
 /**
- * Copyright (C) 2008
+ * Copyright (C) 2010.
  * 
  * @author Yasser Ganjisaffar <yganjisa at uci dot edu>
  */
+
 
 public final class DocIDServer {
 

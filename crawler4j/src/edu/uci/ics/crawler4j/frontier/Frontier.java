@@ -9,7 +9,7 @@ import com.sleepycat.je.Environment;
 import edu.uci.ics.crawler4j.url.WebURL;
 
 /**
- * Copyright (C) 2008
+ * Copyright (C) 2010.
  * 
  * @author Yasser Ganjisaffar <yganjisa at uci dot edu>
  */

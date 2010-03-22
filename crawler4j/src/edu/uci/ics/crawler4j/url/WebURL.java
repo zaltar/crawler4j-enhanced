@@ -6,10 +6,11 @@ import com.sleepycat.persist.model.Entity;
 import com.sleepycat.persist.model.PrimaryKey;
 
 /**
- * Copyright (C) 2008.
+ * Copyright (C) 2010.
  * 
  * @author Yasser Ganjisaffar <yganjisa at uci dot edu>
  */
+
 
 @Entity
 public final class WebURL implements Serializable {

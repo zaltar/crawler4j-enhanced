@@ -2,6 +2,12 @@ package edu.uci.ics.crawler4j.crawler;
 
 import java.util.Properties;
 
+/**
+ * Copyright (C) 2010.
+ * 
+ * @author Yasser Ganjisaffar <yganjisa at uci dot edu>
+ */
+
 public final class Configurations {
 
 	private static Properties prop = new Properties();

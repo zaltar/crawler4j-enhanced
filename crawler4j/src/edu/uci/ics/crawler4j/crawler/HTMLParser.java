@@ -10,6 +10,12 @@ import java.util.Set;
 
 import edu.uci.ics.crawler4j.url.URLCanonicalizer;
 
+/**
+ * Copyright (C) 2010.
+ * 
+ * @author Yasser Ganjisaffar <yganjisa at uci dot edu>
+ */
+
 public class HTMLParser {
 
 	private String text;

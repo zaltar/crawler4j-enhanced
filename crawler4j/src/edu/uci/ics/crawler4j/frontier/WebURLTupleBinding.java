@@ -7,8 +7,9 @@ import com.sleepycat.bind.tuple.TupleOutput;
 import edu.uci.ics.crawler4j.url.WebURL;
 
 /**
- * Copyright (C) 2008
- * @author Yasser Ganjisaffar <yganjisa@uci.edu>
+ * Copyright (C) 2010.
+ * 
+ * @author Yasser Ganjisaffar <yganjisa at uci dot edu>
  */
 
 public final class WebURLTupleBinding extends TupleBinding<WebURL> {

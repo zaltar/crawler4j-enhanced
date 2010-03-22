@@ -1,9 +1,11 @@
 package edu.uci.ics.crawler4j.util;
 
 /**
- * Copyright (C) 2008
+ * Copyright (C) 2010.
+ * 
  * @author Yasser Ganjisaffar <yganjisa at uci dot edu>
  */
+
 
 public final class Util {
 	

@@ -9,7 +9,8 @@ import org.apache.http.HttpHost;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.HttpVersion;
-import org.apache.http.client.HttpClient;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.conn.params.ConnManagerParams;
 import org.apache.http.conn.params.ConnPerRouteBean;
@@ -42,7 +43,7 @@ public final class PageFetcher {
 
 	private static ThreadSafeClientConnManager connectionManager;
 
-	private static HttpClient httpclient;
+	private static DefaultHttpClient httpclient;
 
 	private static Object mutex = PageFetcher.class.toString() + "_MUTEX";
 
@@ -188,6 +189,14 @@ public final class PageFetcher {
 		HttpHost proxy = new HttpHost(proxyHost, proxyPort);
 		httpclient.getParams().setParameter(ConnRoutePNames.DEFAULT_PROXY,
 				proxy);
+	}
+
+	public static void setProxy(String proxyHost, int proxyPort,
+			String username, String password) {
+		httpclient.getCredentialsProvider().setCredentials(
+				new AuthScope(proxyHost, proxyPort),
+				new UsernamePasswordCredentials(username, password));
+		setProxy(proxyHost, proxyPort);
 	}
 
 }

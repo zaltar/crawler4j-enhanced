@@ -4,12 +4,11 @@ import java.net.MalformedURLException;
 import java.net.URL;
 
 /**
+ * Copyright (C) 2010.
  * 
- * Copyright (C) 2008
- * 
- * @author Yasser Ganjisaffar <yganjisa@uci.edu>
- * 
+ * @author Yasser Ganjisaffar <yganjisa at uci dot edu>
  */
+
 
 public final class URLCanonicalizer {
 

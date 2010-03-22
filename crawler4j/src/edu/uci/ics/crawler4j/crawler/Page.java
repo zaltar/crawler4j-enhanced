@@ -8,6 +8,12 @@ import java.util.ArrayList;
 
 import edu.uci.ics.crawler4j.url.WebURL;
 
+/**
+ * Copyright (C) 2010.
+ * 
+ * @author Yasser Ganjisaffar <yganjisa at uci dot edu>
+ */
+
 public class Page {
 	
 	private WebURL url;
