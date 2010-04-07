@@ -133,6 +133,7 @@ public class WebCrawler implements Runnable {
 						toList.add(new WebURL(url, -newdocid));
 						WebURL cur = new WebURL(url, -newdocid);
 						if (shouldVisit(cur)) {
+							cur.setParentDocid(docid);
 							toSchedule.add(cur);
 						}
 					}

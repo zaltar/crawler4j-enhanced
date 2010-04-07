@@ -1,5 +1,6 @@
 package edu.uci.ics.crawler4j.example;
 
+import java.util.ArrayList;
 import java.util.regex.Pattern;
 
 import edu.uci.ics.crawler4j.crawler.Page;
@@ -33,10 +34,17 @@ public class MyCrawler extends WebCrawler {
 	}
 	
 	public void visit(Page page) {
-		// You can get the docid, url, text or links as follows:
-		// int docid = page.getWebURL().getDocid();
-        // String url = page.getWebURL().getURL();         
-        // String text = page.getText();
-        // ArrayList<WebURL> links = page.getURLs();
+		int docid = page.getWebURL().getDocid();
+        String url = page.getWebURL().getURL();         
+        String text = page.getText();
+        ArrayList<WebURL> links = page.getURLs();
+		int parentDocid = page.getWebURL().getParentDocid();
+		
+		System.out.println("Docid: " + docid);
+		System.out.println("URL: " + url);
+		System.out.println("Text length: " + text.length());
+		System.out.println("Number of links: " + links.size());
+		System.out.println("Docid of parent page: " + parentDocid);
+		System.out.println("=============");
 	}	
 }

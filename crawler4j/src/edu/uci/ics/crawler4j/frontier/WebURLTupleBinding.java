@@ -16,12 +16,15 @@ public final class WebURLTupleBinding extends TupleBinding<WebURL> {
 
 	@Override
 	public WebURL entryToObject(TupleInput input) {
-		return new WebURL(input.readString(), input.readInt());		
+		WebURL webURL = new WebURL(input.readString(), input.readInt());
+		webURL.setParentDocid(input.readInt());
+		return webURL;
 	}
 
 	@Override
 	public void objectToEntry(WebURL url, TupleOutput output) {		
 		output.writeString(url.getURL());
 		output.writeInt(url.getDocid());
+		output.writeInt(url.getParentDocid());
 	}
 }

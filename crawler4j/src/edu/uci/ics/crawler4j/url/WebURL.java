@@ -22,6 +22,8 @@ public final class WebURL implements Serializable {
 
 	private int docid;
 	
+	private int parentDocid;
+	
 	public WebURL(String url, int docid) {
 		this.url = url;
 		this.docid = docid;
@@ -65,5 +67,13 @@ public final class WebURL implements Serializable {
 
 	public void setURL(String url) {
 		this.url = url;
+	}
+	
+	public int getParentDocid() {
+		return parentDocid;
+	}
+
+	public void setParentDocid(int parentDocid) {
+		this.parentDocid = parentDocid;
 	}
 }
