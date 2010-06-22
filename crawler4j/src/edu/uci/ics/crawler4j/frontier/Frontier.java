@@ -3,6 +3,8 @@ package edu.uci.ics.crawler4j.frontier;
 import java.util.ArrayList;
 import java.util.Iterator;
 
+import org.apache.log4j.Logger;
+
 import com.sleepycat.je.DatabaseException;
 import com.sleepycat.je.Environment;
 
@@ -16,6 +18,9 @@ import edu.uci.ics.crawler4j.url.WebURL;
 
 public final class Frontier {
 	
+	private static final Logger logger = Logger.getLogger(Frontier.class
+			.getName());
+	
 	private static WorkQueues workQueues;
 
 	private static Object mutex = Frontier.class.toString() + "_Mutex";
@@ -28,7 +33,7 @@ public final class Frontier {
 		try {
 			workQueues = new WorkQueues(env);
 		} catch (DatabaseException e) {
-			System.out.println("Error while initializing the Frontier: "
+			logger.error("Error while initializing the Frontier: "
 					+ e.getMessage());
 			workQueues = null;
 		}
@@ -42,8 +47,7 @@ public final class Frontier {
 				try {
 					workQueues.put(url);
 				} catch (DatabaseException e) {
-					System.err
-							.println("Error while puting the url in the work queue.");
+					logger.error("Error while puting the url in the work queue.");
 				}
 			}
 			synchronized (waitingList) {
@@ -57,8 +61,7 @@ public final class Frontier {
 			try {
 				workQueues.put(url);
 			} catch (DatabaseException e) {
-				System.err
-						.println("Error while puting the url in the work queue.");
+				logger.error("Error while puting the url in the work queue.");
 			}
 		}
 	}
@@ -72,8 +75,7 @@ public final class Frontier {
 					workQueues.delete(curResults.size());
 					result.addAll(curResults);
 				} catch (DatabaseException e) {
-					System.err
-							.println("Error while getting next urls: "
+					logger.error("Error while getting next urls: "
 									+ e.getMessage());
 					e.printStackTrace();
 				}

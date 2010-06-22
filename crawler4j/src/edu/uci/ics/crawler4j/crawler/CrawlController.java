@@ -56,6 +56,8 @@ public final class CrawlController {
 		env = new Environment(envHome, envConfig);
 		Frontier.init(env);
 		DocIDServer.init(env);
+		
+		PageFetcher.startConnectionMonitorThread();
 	}
 
 	public <T extends WebCrawler> void start(Class<T> _c, int numberOfCrawlers) {
@@ -99,14 +101,14 @@ public final class CrawlController {
 				}
 				if (!someoneIsWorking) {
 					// Make sure again that none of the threads are alive.					
-					sleep(60);
+					sleep(40);
 					
 					if (!isAnyThreadWorking()) {
 						long queueLength = Frontier.getQueueLength();
 						if (queueLength > 0) {							
 							continue;
 						}
-						sleep(180);
+						sleep(60);
 						queueLength = Frontier.getQueueLength();
 						if (queueLength > 0) {							
 							continue;

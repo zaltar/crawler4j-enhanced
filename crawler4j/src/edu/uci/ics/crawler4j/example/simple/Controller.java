@@ -1,4 +1,4 @@
-package edu.uci.ics.crawler4j.example;
+package edu.uci.ics.crawler4j.example.simple;
 
 import edu.uci.ics.crawler4j.crawler.CrawlController;
 
@@ -19,7 +19,7 @@ public class Controller {
 			int numberOfCrawlers = Integer.parseInt(args[1]);
 			
 			CrawlController controller = new CrawlController(rootFolder);		
-			controller.addSeed("http://en.wikipedia.org/");
+			controller.addSeed("http://www.cnn.com/");
 			
 			// Be polite:
 			// Make sure that we don't send more than 5 requests per second (200 milliseconds between requests).

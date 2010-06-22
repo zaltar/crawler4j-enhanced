@@ -1,4 +1,4 @@
-package edu.uci.ics.crawler4j.example;
+package edu.uci.ics.crawler4j.example.simple;
 
 import java.util.ArrayList;
 import java.util.regex.Pattern;
@@ -27,7 +27,7 @@ public class MyCrawler extends WebCrawler {
 		if (filters.matcher(href).matches()) {
 			return false;
 		}
-		if (href.startsWith("http://en.wikipedia.org/")) {
+		if (href.startsWith("http://www.cnn.com/")) {
 			return true;
 		}
 		return false;

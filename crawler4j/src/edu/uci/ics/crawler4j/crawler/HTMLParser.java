@@ -28,7 +28,7 @@ public class HTMLParser {
 
 	private LinkExtractor linkExtractor = new LinkExtractor();
 	
-	private static final int MAX_OUT_LINKS = Configurations.getIntProperty("fetcher.max_outlinks");
+	private static final int MAX_OUT_LINKS = Configurations.getIntProperty("fetcher.max_outlinks", 5000);
 
 	private Set<String> urls;
 
