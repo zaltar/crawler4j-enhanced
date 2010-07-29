@@ -24,9 +24,9 @@ public class WebCrawler implements Runnable {
 	private final static int PROCESS_OK = -12;
 
 	private HTMLParser htmlParser;
-	
+
 	int myid;
-	
+
 	private CrawlController myController;
 
 	public CrawlController getMyController() {
@@ -38,29 +38,29 @@ public class WebCrawler implements Runnable {
 	}
 
 	public WebCrawler() {
-		htmlParser = new HTMLParser();		
+		htmlParser = new HTMLParser();
 	}
-	
+
 	public WebCrawler(int myid) {
 		this.myid = myid;
 	}
-	
+
 	public void setMyId(int myid) {
 		this.myid = myid;
 	}
-	
+
 	public int getMyId() {
 		return myid;
 	}
-	
+
 	public void onStart() {
-		
+
 	}
-	
+
 	public void onBeforeExit() {
-		
+
 	}
-	
+
 	public Object getMyLocalData() {
 		return null;
 	}
@@ -89,12 +89,12 @@ public class WebCrawler implements Runnable {
 		}
 	}
 
-	public boolean shouldVisit(WebURL url) {		
+	public boolean shouldVisit(WebURL url) {
 		return true;
 	}
 
 	public void visit(Page page) {
-		
+
 	}
 
 	private int preProcessPage(WebURL curURL) {
@@ -108,39 +108,42 @@ public class WebCrawler implements Runnable {
 		int docid = curURL.getDocid();
 		if (statusCode != PageFetchStatus.OK) {
 			if (statusCode == PageFetchStatus.PageTooBig) {
-				logger.error("Page was bigger than max allowed size: " + curURL.getURL());
-			} 
+				logger.error("Page was bigger than max allowed size: "
+						+ curURL.getURL());
+			}
 			return statusCode;
 		}
 
 		try {
-			htmlParser.parse(page.getHTML(), curURL.getURL());
-			page.setText(htmlParser.getText());
-			page.setTitle(htmlParser.getTitle());
+			if (!page.isBinary()) {
+				htmlParser.parse(page.getHTML(), curURL.getURL());
+				page.setText(htmlParser.getText());
+				page.setTitle(htmlParser.getTitle());
 
-			Iterator<String> it = htmlParser.getLinks().iterator();
-			ArrayList<WebURL> toSchedule = new ArrayList<WebURL>();
-			ArrayList<WebURL> toList = new ArrayList<WebURL>();
-			while (it.hasNext()) {
-				String url = it.next();				
-				if (url != null) {
-					int newdocid = DocIDServer.getDocID(url);
-					if (newdocid > 0) {
-						if (newdocid != docid) {
-							toList.add(new WebURL(url, newdocid));
-						}
-					} else {
-						toList.add(new WebURL(url, -newdocid));
-						WebURL cur = new WebURL(url, -newdocid);
-						if (shouldVisit(cur)) {
-							cur.setParentDocid(docid);
-							toSchedule.add(cur);
+				Iterator<String> it = htmlParser.getLinks().iterator();
+				ArrayList<WebURL> toSchedule = new ArrayList<WebURL>();
+				ArrayList<WebURL> toList = new ArrayList<WebURL>();
+				while (it.hasNext()) {
+					String url = it.next();
+					if (url != null) {
+						int newdocid = DocIDServer.getDocID(url);
+						if (newdocid > 0) {
+							if (newdocid != docid) {
+								toList.add(new WebURL(url, newdocid));
+							}
+						} else {
+							toList.add(new WebURL(url, -newdocid));
+							WebURL cur = new WebURL(url, -newdocid);
+							if (shouldVisit(cur)) {
+								cur.setParentDocid(docid);
+								toSchedule.add(cur);
+							}
 						}
 					}
 				}
+				Frontier.scheduleAll(toSchedule);
+				page.setURLs(toList);
 			}
-			Frontier.scheduleAll(toSchedule);
-			page.setURLs(toList);
 			visit(page);
 		} catch (Exception e) {
 			e.printStackTrace();

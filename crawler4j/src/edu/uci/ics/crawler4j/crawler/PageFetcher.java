@@ -39,8 +39,7 @@ import edu.uci.ics.crawler4j.url.WebURL;
 
 public final class PageFetcher {
 
-	private static final Logger logger = Logger.getLogger(PageFetcher.class
-			.getName());
+	private static final Logger logger = Logger.getLogger(PageFetcher.class);
 
 	private static ThreadSafeClientConnManager connectionManager;
 
@@ -54,11 +53,11 @@ public final class PageFetcher {
 
 	private static long lastFetchTime = 0;
 
-	private static long politenessDelay = Configurations
-			.getIntProperty("fetcher.default_politeness_delay", 200);
+	private static long politenessDelay = Configurations.getIntProperty(
+			"fetcher.default_politeness_delay", 200);
 
-	public static final int MAX_DOWNLOAD_SIZE = Configurations
-			.getIntProperty("fetcher.max_download_size", 1048576);
+	public static final int MAX_DOWNLOAD_SIZE = Configurations.getIntProperty(
+			"fetcher.max_download_size", 1048576);
 
 	private static final boolean show404Pages = Configurations
 			.getBooleanProperty("logging.show_404_pages", true);
@@ -78,8 +77,9 @@ public final class PageFetcher {
 		paramsBean.setContentCharset("UTF-8");
 		paramsBean.setUseExpectContinue(false);
 
-		params.setParameter("http.useragent", Configurations
-				.getStringProperty("fetcher.user_agent", "crawler4j (http://code.google.com/p/crawler4j/)"));
+		params.setParameter("http.useragent", Configurations.getStringProperty(
+				"fetcher.user_agent",
+				"crawler4j (http://code.google.com/p/crawler4j/)"));
 
 		params.setIntParameter("http.socket.timeout", Configurations
 				.getIntProperty("fetcher.socket_timeout", 20000));
@@ -88,11 +88,12 @@ public final class PageFetcher {
 				.getIntProperty("fetcher.connection_timeout", 30000));
 
 		params.setBooleanParameter("http.protocol.handle-redirects",
-				Configurations.getBooleanProperty("fetcher.follow_redirects", true));
+				Configurations.getBooleanProperty("fetcher.follow_redirects",
+						true));
 
 		ConnPerRouteBean connPerRouteBean = new ConnPerRouteBean();
-		connPerRouteBean.setDefaultMaxPerRoute(Configurations
-				.getIntProperty("fetcher.max_connections_per_host", 100));
+		connPerRouteBean.setDefaultMaxPerRoute(Configurations.getIntProperty(
+				"fetcher.max_connections_per_host", 100));
 		ConnManagerParams.setMaxConnectionsPerRoute(params, connPerRouteBean);
 		ConnManagerParams.setMaxTotalConnections(params, Configurations
 				.getIntProperty("fetcher.max_total_connections", 100));
@@ -184,7 +185,15 @@ public final class PageFetcher {
 					return PageFetchStatus.PageTooBig;
 				}
 
-				if (page.load(entity.getContent(), (int) size)) {
+				boolean isBinary = false;
+
+				Header type = entity.getContentType();
+				if (type != null
+						&& type.getValue().toLowerCase().contains("image")) {
+					isBinary = true;
+				}
+
+				if (page.load(entity.getContent(), (int) size, isBinary)) {
 					return PageFetchStatus.OK;
 				} else {
 					return PageFetchStatus.PageLoadError;

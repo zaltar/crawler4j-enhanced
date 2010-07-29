@@ -15,24 +15,32 @@ import edu.uci.ics.crawler4j.url.WebURL;
  */
 
 public class Page {
-	
+
 	private WebURL url;
-	
+
 	private String html;
-	
+
+	// Data for textual content
 	private String text;
-	
 	private String title;
-	
+
+	// binary data (e.g, image content)
+	// It's null for html pages
+	private byte[] binaryData;
+
 	private ArrayList<WebURL> urls;
 
 	private ByteBuffer bBuf;
-	
-	public boolean load(final InputStream in, final int totalsize) {
+
+	private final static String defaultEncoding = Configurations
+			.getStringProperty("crawler.default_encoding", "UTF-8");
+
+	public boolean load(final InputStream in, final int totalsize,
+			final boolean isBinary) {
 		if (totalsize > 0) {
 			this.bBuf = ByteBuffer.allocate(totalsize + 1024);
 		} else {
-			this.bBuf = ByteBuffer.allocate(PageFetcher.MAX_DOWNLOAD_SIZE); 
+			this.bBuf = ByteBuffer.allocate(PageFetcher.MAX_DOWNLOAD_SIZE);
 		}
 		final byte[] b = new byte[1024];
 		int len;
@@ -43,24 +51,29 @@ public class Page {
 					break;
 				}
 				this.bBuf.put(b, 0, len);
-				finished += len;				
+				finished += len;
 			}
 		} catch (final BufferOverflowException boe) {
-			System.out.println("Page size exceeds maximum allowed.");			
+			System.out.println("Page size exceeds maximum allowed.");
 			return false;
 		} catch (final Exception e) {
 			System.err.println(e.getMessage());
 			return false;
 		}
-		this.html = "";
+
 		this.bBuf.flip();
-		this.html += Charset.forName("UTF-8").decode(this.bBuf);
-		this.bBuf.clear();
-		if (!this.html.equals("")) {
-			return true;
+		if (isBinary) {
+			binaryData = new byte[bBuf.limit()];
+			bBuf.get(binaryData);
 		} else {
-			return false;
+			this.html = "";
+			this.html += Charset.forName(defaultEncoding).decode(this.bBuf);
+			this.bBuf.clear();
+			if (this.html.length() == 0) {
+				return false;
+			}
 		}
+		return true;
 	}
 
 	public Page(WebURL url) {
@@ -70,7 +83,7 @@ public class Page {
 	public String getHTML() {
 		return this.html;
 	}
-	
+
 	public String getText() {
 		return text;
 	}
@@ -78,7 +91,7 @@ public class Page {
 	public void setText(String text) {
 		this.text = text;
 	}
-	
+
 	public String getTitle() {
 		return title;
 	}
@@ -101,6 +114,15 @@ public class Page {
 
 	public void setWebURL(WebURL url) {
 		this.url = url;
+	}
+
+	// Image or other non-textual pages
+	public boolean isBinary() {
+		return binaryData != null;
+	}
+
+	public byte[] getBinaryData() {
+		return binaryData;
 	}
 
 }

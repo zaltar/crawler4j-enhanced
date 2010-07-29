@@ -1,6 +1,8 @@
 package edu.uci.ics.crawler4j.util;
 
 import java.io.*;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 
 /**
  * Copyright (C) 2010.
@@ -30,5 +32,15 @@ public final class IO {
 			}
 		}
 		return true;
+	}
+	
+	public static void writeBytesToFile(byte[] bytes, String destination) {
+		try {
+			FileChannel fc = new FileOutputStream(destination).getChannel();
+			fc.write(ByteBuffer.wrap(bytes));
+			fc.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 }
