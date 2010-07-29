@@ -19,6 +19,9 @@ import edu.uci.ics.crawler4j.util.IO;
  * folder. This is just for demonstration purposes and doesn't scale for large
  * number of images. For crawling millions of images you would need to store
  * downloaded images in a hierarchy of folders
+ * 
+ * IMPORTANT: Make sure that you update crawler4j.properties file and 
+ *            set crawler.include_images to true
  */
 public class MyImageCrawler extends WebCrawler {
 

@@ -8,6 +8,11 @@ import edu.uci.ics.crawler4j.crawler.CrawlController;
  * @author Yasser Ganjisaffar <yganjisa at uci dot edu>
  */
 
+/*
+* IMPORTANT: Make sure that you update crawler4j.properties file and 
+*            set crawler.include_images to true           
+*/
+
 public class Controller {
 
 	public static void main(String[] args) throws Exception {
