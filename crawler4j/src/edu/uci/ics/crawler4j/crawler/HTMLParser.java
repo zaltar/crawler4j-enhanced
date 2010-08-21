@@ -3,6 +3,7 @@ package edu.uci.ics.crawler4j.crawler;
 import it.unimi.dsi.parser.BulletParser;
 import it.unimi.dsi.parser.callback.TextExtractor;
 
+import java.net.URL;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
@@ -58,18 +59,20 @@ public class HTMLParser {
 			if (href.length() == 0) {
 				continue;
 			}
-			String hrefWithoutProtocol = href;
+			String hrefWithoutProtocol = href.toLowerCase();
 			if (href.startsWith("http://")) {
 				hrefWithoutProtocol = href.substring(7);
 			}
-			if (hrefWithoutProtocol.indexOf(":") < 0
+			if (hrefWithoutProtocol.indexOf("javascript:") < 0
 					&& hrefWithoutProtocol.indexOf("@") < 0) {
-				urls.add(URLCanonicalizer.getCanonicalURL(href, contextURL)
-						.toExternalForm());
-				urlCount++;
-				if (urlCount > MAX_OUT_LINKS) {
-					break;
-				}
+				URL url = URLCanonicalizer.getCanonicalURL(href, contextURL);
+				if (url != null) {
+					urls.add(url.toExternalForm());
+					urlCount++;
+					if (urlCount > MAX_OUT_LINKS) {
+						break;
+					}	
+				}				
 			}
 		}
 	}
