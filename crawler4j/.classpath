@@ -6,7 +6,7 @@
 	<classpathentry kind="lib" path="lib/commons-logging-1.1.1.jar"/>
 	<classpathentry kind="lib" path="lib/dsiutils-1.0.10.jar"/>
 	<classpathentry kind="lib" path="lib/fastutil-5.1.5.jar"/>
-	<classpathentry kind="lib" path="lib/httpclient-4.0.1.jar"/>
+	<classpathentry kind="lib" path="lib/httpclient-4.0.1.jar" sourcepath="E:/softwares/httpcomponents-client-4.1/httpclient/src/main/java"/>
 	<classpathentry kind="lib" path="lib/httpcore-4.0.1.jar"/>
 	<classpathentry kind="lib" path="lib/je-4.0.71.jar"/>
 	<classpathentry kind="lib" path="lib/log4j-1.2.15.jar"/>

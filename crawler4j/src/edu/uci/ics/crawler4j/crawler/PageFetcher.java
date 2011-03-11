@@ -1,3 +1,20 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package edu.uci.ics.crawler4j.crawler;
 
 import java.io.IOException;
@@ -32,8 +49,6 @@ import edu.uci.ics.crawler4j.url.URLCanonicalizer;
 import edu.uci.ics.crawler4j.url.WebURL;
 
 /**
- * Copyright (C) 2010.
- * 
  * @author Yasser Ganjisaffar <yganjisa at uci dot edu>
  */
 
@@ -48,19 +63,16 @@ public final class PageFetcher {
 	private static Object mutex = PageFetcher.class.toString() + "_MUTEX";
 
 	private static int processedCount = 0;
-
 	private static long startOfPeriod = 0;
-
 	private static long lastFetchTime = 0;
 
-	private static long politenessDelay = Configurations.getIntProperty(
-			"fetcher.default_politeness_delay", 200);
+	private static long politenessDelay = Configurations.getIntProperty("fetcher.default_politeness_delay", 200);
 
-	public static final int MAX_DOWNLOAD_SIZE = Configurations.getIntProperty(
-			"fetcher.max_download_size", 1048576);
+	public static final int MAX_DOWNLOAD_SIZE = Configurations.getIntProperty("fetcher.max_download_size", 1048576);
 
-	private static final boolean show404Pages = Configurations
-			.getBooleanProperty("logging.show_404_pages", true);
+	private static final boolean show404Pages = Configurations.getBooleanProperty("logging.show_404_pages", true);
+
+	private static IdleConnectionMonitorThread connectionMonitorThread = null;
 
 	public static long getPolitenessDelay() {
 		return politenessDelay;
@@ -77,47 +89,50 @@ public final class PageFetcher {
 		paramsBean.setContentCharset("UTF-8");
 		paramsBean.setUseExpectContinue(false);
 
-		params.setParameter("http.useragent", Configurations.getStringProperty(
-				"fetcher.user_agent",
+		params.setParameter("http.useragent", Configurations.getStringProperty("fetcher.user_agent",
 				"crawler4j (http://code.google.com/p/crawler4j/)"));
 
-		params.setIntParameter("http.socket.timeout", Configurations
-				.getIntProperty("fetcher.socket_timeout", 20000));
+		params.setIntParameter("http.socket.timeout", Configurations.getIntProperty("fetcher.socket_timeout", 20000));
 
-		params.setIntParameter("http.connection.timeout", Configurations
-				.getIntProperty("fetcher.connection_timeout", 30000));
+		params.setIntParameter("http.connection.timeout",
+				Configurations.getIntProperty("fetcher.connection_timeout", 30000));
 
 		params.setBooleanParameter("http.protocol.handle-redirects",
-				Configurations.getBooleanProperty("fetcher.follow_redirects",
-						true));
+				Configurations.getBooleanProperty("fetcher.follow_redirects", true));
 
 		ConnPerRouteBean connPerRouteBean = new ConnPerRouteBean();
-		connPerRouteBean.setDefaultMaxPerRoute(Configurations.getIntProperty(
-				"fetcher.max_connections_per_host", 100));
+		connPerRouteBean.setDefaultMaxPerRoute(Configurations.getIntProperty("fetcher.max_connections_per_host", 100));
 		ConnManagerParams.setMaxConnectionsPerRoute(params, connPerRouteBean);
-		ConnManagerParams.setMaxTotalConnections(params, Configurations
-				.getIntProperty("fetcher.max_total_connections", 100));
+		ConnManagerParams.setMaxTotalConnections(params,
+				Configurations.getIntProperty("fetcher.max_total_connections", 100));
 
 		SchemeRegistry schemeRegistry = new SchemeRegistry();
-		schemeRegistry.register(new Scheme("http", PlainSocketFactory
-				.getSocketFactory(), 80));
+		schemeRegistry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
 
 		if (Configurations.getBooleanProperty("fetcher.crawl_https", false)) {
-			schemeRegistry.register(new Scheme("https", SSLSocketFactory
-					.getSocketFactory(), 443));
+			schemeRegistry.register(new Scheme("https", SSLSocketFactory.getSocketFactory(), 443));
 		}
 
-		connectionManager = new ThreadSafeClientConnManager(params,
-				schemeRegistry);
+		connectionManager = new ThreadSafeClientConnManager(params, schemeRegistry);
 		logger.setLevel(Level.INFO);
 		httpclient = new DefaultHttpClient(connectionManager, params);
 	}
 
-	public static void startConnectionMonitorThread() {
-		new Thread(new IdleConnectionMonitorThread(connectionManager)).start();
+	public synchronized static void startConnectionMonitorThread() {
+		if (connectionMonitorThread == null) {
+			connectionMonitorThread = new IdleConnectionMonitorThread(connectionManager);
+		}
+		connectionMonitorThread.start();
 	}
 
-	public static int fetch(Page page) {
+	public synchronized static void stopConnectionMonitorThread() {
+		if (connectionMonitorThread != null) {
+			connectionManager.shutdown();
+			connectionMonitorThread.shutdown();
+		}
+	}
+
+	public static int fetch(Page page, boolean ignoreIfBinary) {
 		String toFetchURL = page.getWebURL().getURL();
 		HttpGet get = null;
 		HttpEntity entity = null;
@@ -126,8 +141,8 @@ public final class PageFetcher {
 			synchronized (mutex) {
 				long now = (new Date()).getTime();
 				if (now - startOfPeriod > 10000) {
-					logger.info("Number of pages fetched per second: "
-							+ processedCount / ((now - startOfPeriod) / 1000));
+					logger.info("Number of pages fetched per second: " + processedCount
+							/ ((now - startOfPeriod) / 1000));
 					processedCount = 0;
 					startOfPeriod = now;
 				}
@@ -143,12 +158,9 @@ public final class PageFetcher {
 
 			if (response.getStatusLine().getStatusCode() != HttpStatus.SC_OK) {
 				if (response.getStatusLine().getStatusCode() != HttpStatus.SC_NOT_FOUND) {
-					logger.info("Failed: "
-							+ response.getStatusLine().toString()
-							+ ", while fetching " + toFetchURL);
+					logger.info("Failed: " + response.getStatusLine().toString() + ", while fetching " + toFetchURL);
 				} else if (show404Pages) {
-					logger.info("Not Found: " + toFetchURL
-							+ " (Link found in doc#: "
+					logger.info("Not Found: " + toFetchURL + " (Link found in doc#: "
 							+ page.getWebURL().getParentDocid() + ")");
 				}
 				return response.getStatusLine().getStatusCode();
@@ -162,7 +174,10 @@ public final class PageFetcher {
 						if (newdocid > 0) {
 							return PageFetchStatus.RedirectedPageIsSeen;
 						}
-						page.setWebURL(new WebURL(uri, -newdocid));
+						WebURL webURL = new WebURL();
+						webURL.setURL(uri);
+						webURL.setDocid(-newdocid);
+						page.setWebURL(webURL);
 					}
 				}
 			}
@@ -188,9 +203,11 @@ public final class PageFetcher {
 				boolean isBinary = false;
 
 				Header type = entity.getContentType();
-				if (type != null
-						&& type.getValue().toLowerCase().contains("image")) {
+				if (type != null && type.getValue().toLowerCase().contains("image")) {
 					isBinary = true;
+					if (ignoreIfBinary) {
+						return PageFetchStatus.PageIsBinary;
+					}
 				}
 
 				if (page.load(entity.getContent(), (int) size, isBinary)) {
@@ -202,20 +219,17 @@ public final class PageFetcher {
 				get.abort();
 			}
 		} catch (IOException e) {
-			logger.error("Fatal transport error: " + e.getMessage()
-					+ " while fetching " + toFetchURL + " (link found in doc #"
-					+ page.getWebURL().getParentDocid() + ")");
+			logger.error("Fatal transport error: " + e.getMessage() + " while fetching " + toFetchURL
+					+ " (link found in doc #" + page.getWebURL().getParentDocid() + ")");
 			return PageFetchStatus.FatalTransportError;
 		} catch (IllegalStateException e) {
 			// ignoring exceptions that occur because of not registering https
 			// and other schemes
 		} catch (Exception e) {
 			if (e.getMessage() == null) {
-				logger.error("Error while fetching "
-						+ page.getWebURL().getURL());
+				logger.error("Error while fetching " + page.getWebURL().getURL());
 			} else {
-				logger.error(e.getMessage() + " while fetching "
-						+ page.getWebURL().getURL());
+				logger.error(e.getMessage() + " while fetching " + page.getWebURL().getURL());
 			}
 		} finally {
 			try {
@@ -233,14 +247,11 @@ public final class PageFetcher {
 
 	public static void setProxy(String proxyHost, int proxyPort) {
 		HttpHost proxy = new HttpHost(proxyHost, proxyPort);
-		httpclient.getParams().setParameter(ConnRoutePNames.DEFAULT_PROXY,
-				proxy);
+		httpclient.getParams().setParameter(ConnRoutePNames.DEFAULT_PROXY, proxy);
 	}
 
-	public static void setProxy(String proxyHost, int proxyPort,
-			String username, String password) {
-		httpclient.getCredentialsProvider().setCredentials(
-				new AuthScope(proxyHost, proxyPort),
+	public static void setProxy(String proxyHost, int proxyPort, String username, String password) {
+		httpclient.getCredentialsProvider().setCredentials(new AuthScope(proxyHost, proxyPort),
 				new UsernamePasswordCredentials(username, password));
 		setProxy(proxyHost, proxyPort);
 	}

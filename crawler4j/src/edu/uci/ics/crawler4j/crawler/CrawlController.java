@@ -1,3 +1,20 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package edu.uci.ics.crawler4j.crawler;
 
 import java.io.File;
@@ -16,8 +33,6 @@ import edu.uci.ics.crawler4j.url.WebURL;
 import edu.uci.ics.crawler4j.util.IO;
 
 /**
- * Copyright (C) 2010
- * 
  * @author Yasser Ganjisaffar <yganjisa at uci dot edu>
  */
 
@@ -100,7 +115,8 @@ public final class CrawlController {
 					}
 				}
 				if (!someoneIsWorking) {
-					// Make sure again that none of the threads are alive.					
+					// Make sure again that none of the threads are alive.
+					logger.info("It looks like no thread is working, waiting for 40 seconds to make sure...");
 					sleep(40);
 					
 					if (!isAnyThreadWorking()) {
@@ -108,13 +124,13 @@ public final class CrawlController {
 						if (queueLength > 0) {							
 							continue;
 						}
+						logger.info("No thread is working and no more URLs are in queue waiting for another 60 seconds to make sure...");
 						sleep(60);
 						queueLength = Frontier.getQueueLength();
 						if (queueLength > 0) {							
 							continue;
 						}
-						Frontier.close();
-						logger.info("All of the crawlers are stopped. Finishing the process.");
+						logger.info("All of the crawlers are stopped. Finishing the process...");
 						for (T crawler : crawlers) {
 							crawler.onBeforeExit();
 							crawlersLocalData.add(crawler.getMyLocalData());
@@ -123,7 +139,11 @@ public final class CrawlController {
 						// At this step, frontier notifies the threads that were waiting for new URLs and they should stop
 						// We will wait a few seconds for them and then return.
 						Frontier.finish();
+						logger.info("Waiting for 10 seconds before final clean up...");
 						sleep(10);
+						
+						Frontier.close();
+						PageFetcher.stopConnectionMonitorThread();
 						return;
 					}
 				}
@@ -163,8 +183,10 @@ public final class CrawlController {
 			// This URL is already seen.
 			return;
 		}
-		WebURL URL = new WebURL(canonicalUrl, -docid);
-		Frontier.schedule(URL);
+		WebURL webUrl = new WebURL();
+		webUrl.setURL(canonicalUrl);
+		webUrl.setDocid(-docid);
+		Frontier.schedule(webUrl);
 	}
 	
 	public void setPolitenessDelay(int milliseconds) {
@@ -175,6 +197,16 @@ public final class CrawlController {
 			milliseconds = 10000;
 		}
 		PageFetcher.setPolitenessDelay(milliseconds);
+	}
+	
+	public void setMaximumCrawlDepth(int depth) throws Exception {
+		if (depth < -1) {
+			throw new Exception("Maximum crawl depth should be either a positive number or -1 for unlimited depth.");
+		}
+		if (depth > Short.MAX_VALUE) {
+			throw new Exception("Maximum value for crawl depth is " + Short.MAX_VALUE);
+		}
+		WebCrawler.setMaximumCrawlDepth((short) depth);
 	}
 	
 	public void setProxy(String proxyHost, int proxyPort) {

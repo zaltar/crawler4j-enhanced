@@ -1,3 +1,20 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package edu.uci.ics.crawler4j.crawler;
 
 import java.util.*;
@@ -9,15 +26,12 @@ import edu.uci.ics.crawler4j.frontier.Frontier;
 import edu.uci.ics.crawler4j.url.WebURL;
 
 /**
- * Copyright (C) 2010.
- * 
  * @author Yasser Ganjisaffar <yganjisa at uci dot edu>
  */
 
 public class WebCrawler implements Runnable {
 
-	private static final Logger logger = Logger.getLogger(WebCrawler.class
-			.getName());
+	private static final Logger logger = Logger.getLogger(WebCrawler.class.getName());
 
 	private Thread myThread;
 
@@ -28,6 +42,9 @@ public class WebCrawler implements Runnable {
 	int myid;
 
 	private CrawlController myController;
+
+	private static short MAX_CRAWL_DEPTH = Configurations.getShortProperty("crawler.max_depth", (short) -1);
+	private static boolean IGNORE_BINARY_CONTENT = !Configurations.getBooleanProperty("crawler.include_images", false);
 
 	public CrawlController getMyController() {
 		return myController;
@@ -94,7 +111,7 @@ public class WebCrawler implements Runnable {
 	}
 
 	public void visit(Page page) {
-
+		// Should be implemented in sub classes
 	}
 
 	private int preProcessPage(WebURL curURL) {
@@ -102,14 +119,13 @@ public class WebCrawler implements Runnable {
 			return -1;
 		}
 		Page page = new Page(curURL);
-		int statusCode = PageFetcher.fetch(page);
+		int statusCode = PageFetcher.fetch(page, IGNORE_BINARY_CONTENT);
 		// The page might have been redirected. So we have to refresh curURL
 		curURL = page.getWebURL();
 		int docid = curURL.getDocid();
 		if (statusCode != PageFetchStatus.OK) {
 			if (statusCode == PageFetchStatus.PageTooBig) {
-				logger.error("Page was bigger than max allowed size: "
-						+ curURL.getURL());
+				logger.error("Page was bigger than max allowed size: " + curURL.getURL());
 			}
 			return statusCode;
 		}
@@ -120,6 +136,10 @@ public class WebCrawler implements Runnable {
 				page.setText(htmlParser.getText());
 				page.setTitle(htmlParser.getTitle());
 
+				if (page.getText() == null) {
+					return PageFetchStatus.NotInTextFormat;
+				}
+
 				Iterator<String> it = htmlParser.getLinks().iterator();
 				ArrayList<WebURL> toSchedule = new ArrayList<WebURL>();
 				ArrayList<WebURL> toList = new ArrayList<WebURL>();
@@ -129,14 +149,22 @@ public class WebCrawler implements Runnable {
 						int newdocid = DocIDServer.getDocID(url);
 						if (newdocid > 0) {
 							if (newdocid != docid) {
-								toList.add(new WebURL(url, newdocid));
+								WebURL webURL = new WebURL();
+								webURL.setURL(url);
+								webURL.setDocid(newdocid);
+								toList.add(webURL);
 							}
 						} else {
-							toList.add(new WebURL(url, -newdocid));
-							WebURL cur = new WebURL(url, -newdocid);
-							if (shouldVisit(cur)) {
-								cur.setParentDocid(docid);
-								toSchedule.add(cur);
+							WebURL webURL = new WebURL();
+							webURL.setURL(url);
+							webURL.setDocid(-newdocid);
+							toList.add(webURL);
+							if (shouldVisit(webURL)) {
+								if (MAX_CRAWL_DEPTH == -1 || curURL.getDepth() < MAX_CRAWL_DEPTH) {
+									webURL.setParentDocid(docid);
+									webURL.setDepth((short) (curURL.getDepth() + 1));
+									toSchedule.add(webURL);
+								}
 							}
 						}
 					}
@@ -147,8 +175,7 @@ public class WebCrawler implements Runnable {
 			visit(page);
 		} catch (Exception e) {
 			e.printStackTrace();
-			logger.error(e.getMessage() + ", while processing: "
-					+ curURL.getURL());
+			logger.error(e.getMessage() + ", while processing: " + curURL.getURL());
 		}
 		return PROCESS_OK;
 	}
@@ -159,5 +186,9 @@ public class WebCrawler implements Runnable {
 
 	public void setThread(Thread myThread) {
 		this.myThread = myThread;
+	}
+
+	public static void setMaximumCrawlDepth(short depth) {
+		MAX_CRAWL_DEPTH = depth;
 	}
 }
