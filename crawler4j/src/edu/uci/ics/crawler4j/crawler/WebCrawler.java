@@ -23,6 +23,7 @@ import org.apache.log4j.Logger;
 
 import edu.uci.ics.crawler4j.frontier.DocIDServer;
 import edu.uci.ics.crawler4j.frontier.Frontier;
+import edu.uci.ics.crawler4j.url.URLCanonicalizer;
 import edu.uci.ics.crawler4j.url.WebURL;
 
 /**
@@ -45,6 +46,7 @@ public class WebCrawler implements Runnable {
 
 	private static short MAX_CRAWL_DEPTH = Configurations.getShortProperty("crawler.max_depth", (short) -1);
 	private static boolean IGNORE_BINARY_CONTENT = !Configurations.getBooleanProperty("crawler.include_images", false);
+	private static final boolean FOLLOW_REDIRECTS = Configurations.getBooleanProperty("fetcher.follow_redirects", true);
 
 	public CrawlController getMyController() {
 		return myController;
@@ -124,7 +126,29 @@ public class WebCrawler implements Runnable {
 		curURL = page.getWebURL();
 		int docid = curURL.getDocid();
 		if (statusCode != PageFetchStatus.OK) {
-			if (statusCode == PageFetchStatus.PageTooBig) {
+			if (statusCode == PageFetchStatus.Moved) {
+				if (FOLLOW_REDIRECTS) {
+					String movedToUrl = curURL.getURL();
+					if (movedToUrl == null) {
+						return PageFetchStatus.MovedToUnknownLocation;
+					}
+					movedToUrl = URLCanonicalizer.getCanonicalURL(movedToUrl);
+					int newdocid = DocIDServer.getDocID(movedToUrl);
+					if (newdocid > 0) {
+						return PageFetchStatus.RedirectedPageIsSeen;
+					} else {
+						WebURL webURL = new WebURL();
+						webURL.setURL(movedToUrl);
+						webURL.setDocid(-newdocid);
+						if (shouldVisit(webURL)) {
+							webURL.setParentDocid(curURL.getParentDocid());
+							webURL.setDepth((short) (curURL.getDepth()));
+							Frontier.schedule(webURL);
+						}
+					}
+				}
+				return PageFetchStatus.Moved;
+			} else if (statusCode == PageFetchStatus.PageTooBig) {
 				logger.error("Page was bigger than max allowed size: " + curURL.getURL());
 			}
 			return statusCode;

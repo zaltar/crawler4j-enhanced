@@ -40,7 +40,11 @@ public class Controller {
 			// Make sure that we don't send more than 5 requests per second (200 milliseconds between requests).
 			controller.setPolitenessDelay(200);
 			
-			controller.setMaximumCrawlDepth(1);
+			// Optional:
+			// You can set the maximum crawl depth here.
+			// We crawl in a breadth-first style
+			// The default value is -1 for unlimited depth
+			controller.setMaximumCrawlDepth(3);
 			
 			// Do you need to set a proxy?
 			// If so, you can uncomment the following line

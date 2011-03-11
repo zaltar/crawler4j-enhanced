@@ -48,6 +48,10 @@ public final class PageFetchStatus {
 	
 	public static final int PageIsBinary = 1012;
 	
+	public static final int Moved = 1013;
+	
+	public static final int MovedToUnknownLocation = 1014;
+	
 	public boolean is2XXSuccess(int code) {
     	return code >= 200 && code < 300;
     }

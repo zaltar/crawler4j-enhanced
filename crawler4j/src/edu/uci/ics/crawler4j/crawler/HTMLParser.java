@@ -66,6 +66,11 @@ public class HTMLParser {
 		bulletParser.setCallback(linkExtractor);
 		bulletParser.parse(chars);
 		Iterator<String> it = linkExtractor.urls.iterator();
+		
+		String baseURL = linkExtractor.base();
+		if (baseURL != null) {
+			contextURL = baseURL;
+		}
 
 		int urlCount = 0;
 		while (it.hasNext()) {

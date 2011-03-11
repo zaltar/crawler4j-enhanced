@@ -71,7 +71,7 @@ public final class PageFetcher {
 	public static final int MAX_DOWNLOAD_SIZE = Configurations.getIntProperty("fetcher.max_download_size", 1048576);
 
 	private static final boolean show404Pages = Configurations.getBooleanProperty("logging.show_404_pages", true);
-
+	
 	private static IdleConnectionMonitorThread connectionMonitorThread = null;
 
 	public static long getPolitenessDelay() {
@@ -97,8 +97,7 @@ public final class PageFetcher {
 		params.setIntParameter("http.connection.timeout",
 				Configurations.getIntProperty("fetcher.connection_timeout", 30000));
 
-		params.setBooleanParameter("http.protocol.handle-redirects",
-				Configurations.getBooleanProperty("fetcher.follow_redirects", true));
+		params.setBooleanParameter("http.protocol.handle-redirects", false);
 
 		ConnPerRouteBean connPerRouteBean = new ConnPerRouteBean();
 		connPerRouteBean.setDefaultMaxPerRoute(Configurations.getIntProperty("fetcher.max_connections_per_host", 100));
@@ -156,8 +155,19 @@ public final class PageFetcher {
 			HttpResponse response = httpclient.execute(get);
 			entity = response.getEntity();
 
-			if (response.getStatusLine().getStatusCode() != HttpStatus.SC_OK) {
-				if (response.getStatusLine().getStatusCode() != HttpStatus.SC_NOT_FOUND) {
+			int statusCode = response.getStatusLine().getStatusCode();
+			if (statusCode != HttpStatus.SC_OK) {
+				if (statusCode != HttpStatus.SC_NOT_FOUND) {
+					if (statusCode == HttpStatus.SC_MOVED_PERMANENTLY || statusCode == HttpStatus.SC_MOVED_TEMPORARILY) {
+						Header header = response.getFirstHeader("Location");
+						if (header != null) {
+							String movedToUrl = header.getValue();
+							page.getWebURL().setURL(movedToUrl);
+						} else {
+							page.getWebURL().setURL(null);
+						}
+						return PageFetchStatus.Moved;
+					}
 					logger.info("Failed: " + response.getStatusLine().toString() + ", while fetching " + toFetchURL);
 				} else if (show404Pages) {
 					logger.info("Not Found: " + toFetchURL + " (Link found in doc#: "
