@@ -186,6 +186,7 @@ public final class CrawlController {
 		WebURL webUrl = new WebURL();
 		webUrl.setURL(canonicalUrl);
 		webUrl.setDocid(-docid);
+		webUrl.setDepth((short) 0);
 		Frontier.schedule(webUrl);
 	}
 	
