@@ -35,7 +35,6 @@ public class Downloader {
 		WebURL curURL = new WebURL();
 		curURL.setURL(url);
 		Page page = new Page(curURL);
-		page.setWebURL(curURL);
 		int statusCode = PageFetcher.fetch(page, true);
 		if (statusCode == PageFetchStatus.OK) {
 			try {

@@ -48,7 +48,7 @@ public class Controller {
 			// Optional:
 			// You can set the maximum number of pages to crawl.
 			// The default value is -1 for unlimited depth
-			controller.setMaximumPagesToFetch(50);
+			controller.setMaximumPagesToFetch(500);
 			
 			// Do you need to set a proxy?
 			// If so, you can uncomment the following line

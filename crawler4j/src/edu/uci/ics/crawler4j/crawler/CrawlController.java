@@ -18,6 +18,7 @@
 package edu.uci.ics.crawler4j.crawler;
 
 import java.io.File;
+
 import java.lang.Thread.State;
 import java.util.ArrayList;
 
@@ -28,6 +29,7 @@ import com.sleepycat.je.EnvironmentConfig;
 
 import edu.uci.ics.crawler4j.frontier.DocIDServer;
 import edu.uci.ics.crawler4j.frontier.Frontier;
+import edu.uci.ics.crawler4j.robotstxt.RobotstxtServer;
 import edu.uci.ics.crawler4j.url.URLCanonicalizer;
 import edu.uci.ics.crawler4j.url.WebURL;
 import edu.uci.ics.crawler4j.util.IO;
@@ -183,11 +185,16 @@ public final class CrawlController {
 			// This URL is already seen.
 			return;
 		}
+		
 		WebURL webUrl = new WebURL();
 		webUrl.setURL(canonicalUrl);
 		webUrl.setDocid(-docid);
 		webUrl.setDepth((short) 0);
-		Frontier.schedule(webUrl);
+		if (!RobotstxtServer.allows(webUrl)) {
+			logger.info("Robots.txt does not allow this seed: " + pageUrl);
+		} else {
+			Frontier.schedule(webUrl);
+		}
 	}
 	
 	public void setPolitenessDelay(int milliseconds) {

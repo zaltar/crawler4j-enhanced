@@ -23,6 +23,7 @@ import org.apache.log4j.Logger;
 
 import edu.uci.ics.crawler4j.frontier.DocIDServer;
 import edu.uci.ics.crawler4j.frontier.Frontier;
+import edu.uci.ics.crawler4j.robotstxt.RobotstxtServer;
 import edu.uci.ics.crawler4j.url.URLCanonicalizer;
 import edu.uci.ics.crawler4j.url.WebURL;
 
@@ -140,7 +141,7 @@ public class WebCrawler implements Runnable {
 						WebURL webURL = new WebURL();
 						webURL.setURL(movedToUrl);
 						webURL.setDocid(-newdocid);
-						if (shouldVisit(webURL)) {
+						if (shouldVisit(webURL) && RobotstxtServer.allows(webURL)) {
 							webURL.setParentDocid(curURL.getParentDocid());
 							webURL.setDepth((short) (curURL.getDepth()));
 							Frontier.schedule(webURL);
@@ -183,7 +184,7 @@ public class WebCrawler implements Runnable {
 							webURL.setURL(url);
 							webURL.setDocid(-newdocid);
 							toList.add(webURL);
-							if (shouldVisit(webURL)) {
+							if (shouldVisit(webURL) && RobotstxtServer.allows(webURL)) {
 								if (MAX_CRAWL_DEPTH == -1 || curURL.getDepth() < MAX_CRAWL_DEPTH) {
 									webURL.setParentDocid(docid);
 									webURL.setDepth((short) (curURL.getDepth() + 1));
