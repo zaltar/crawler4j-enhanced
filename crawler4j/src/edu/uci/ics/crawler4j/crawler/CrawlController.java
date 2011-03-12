@@ -210,6 +210,10 @@ public final class CrawlController {
 		WebCrawler.setMaximumCrawlDepth((short) depth);
 	}
 	
+	public void setMaximumPagesToFetch(int max) {
+		Frontier.setMaximumPagesToFetch(max);
+	}
+	
 	public void setProxy(String proxyHost, int proxyPort) {
 		PageFetcher.setProxy(proxyHost, proxyPort);
 	}

@@ -25,6 +25,7 @@ import org.apache.log4j.Logger;
 import com.sleepycat.je.DatabaseException;
 import com.sleepycat.je.Environment;
 
+import edu.uci.ics.crawler4j.crawler.Configurations;
 import edu.uci.ics.crawler4j.url.WebURL;
 
 /**
@@ -32,24 +33,27 @@ import edu.uci.ics.crawler4j.url.WebURL;
  */
 
 public final class Frontier {
-	
-	private static final Logger logger = Logger.getLogger(Frontier.class
-			.getName());
-	
+
+	private static final Logger logger = Logger.getLogger(Frontier.class.getName());
+
 	private static WorkQueues workQueues;
 
 	private static Object mutex = Frontier.class.toString() + "_Mutex";
 
 	private static Object waitingList = Frontier.class.toString() + "_WaitingList";
-	
+
 	private static boolean isFinished = false;
+
+	private static int maxPagesToFetch = Configurations.getIntProperty("crawler.max_pages_to_fetch", -1);
+
+	private static int scheduledPages;
 
 	public static void init(Environment env) {
 		try {
 			workQueues = new WorkQueues(env);
+			scheduledPages = 0;
 		} catch (DatabaseException e) {
-			logger.error("Error while initializing the Frontier: "
-					+ e.getMessage());
+			logger.error("Error while initializing the Frontier: " + e.getMessage());
 			workQueues = null;
 		}
 	}
@@ -58,11 +62,14 @@ public final class Frontier {
 		synchronized (mutex) {
 			Iterator<WebURL> it = urls.iterator();
 			while (it.hasNext()) {
-				WebURL url = it.next();				
-				try {
-					workQueues.put(url);
-				} catch (DatabaseException e) {
-					logger.error("Error while puting the url in the work queue.");
+				WebURL url = it.next();
+				if (maxPagesToFetch < 0 || scheduledPages < maxPagesToFetch) {					
+					try {
+						workQueues.put(url);
+						scheduledPages++;
+					} catch (DatabaseException e) {
+						logger.error("Error while puting the url in the work queue.");
+					}
 				}
 			}
 			synchronized (waitingList) {
@@ -70,11 +77,14 @@ public final class Frontier {
 			}
 		}
 	}
-	
+
 	public static void schedule(WebURL url) {
-		synchronized (mutex) {							
+		synchronized (mutex) {
 			try {
-				workQueues.put(url);
+				if (maxPagesToFetch < 0 || scheduledPages < maxPagesToFetch) {
+					workQueues.put(url);
+					scheduledPages++;
+				}
 			} catch (DatabaseException e) {
 				logger.error("Error while puting the url in the work queue.");
 			}
@@ -84,14 +94,12 @@ public final class Frontier {
 	public static void getNextURLs(int max, ArrayList<WebURL> result) {
 		while (true) {
 			synchronized (mutex) {
-				try {						
-					ArrayList<WebURL> curResults = workQueues
-							.get(max);
+				try {
+					ArrayList<WebURL> curResults = workQueues.get(max);
 					workQueues.delete(curResults.size());
 					result.addAll(curResults);
 				} catch (DatabaseException e) {
-					logger.error("Error while getting next urls: "
-									+ e.getMessage());
+					logger.error("Error while getting next urls: " + e.getMessage());
 					e.printStackTrace();
 				}
 				if (result.size() > 0) {
@@ -109,26 +117,30 @@ public final class Frontier {
 			}
 		}
 	}
-	
+
 	public static long getQueueLength() {
 		return workQueues.getQueueLength();
 	}
-	
+
 	public static void sync() {
 		workQueues.sync();
 		DocIDServer.sync();
 	}
-	
+
 	public static boolean isFinished() {
 		return isFinished;
 	}
-
-	public static void close() {		
-		sync();		
-		workQueues.close();
-		DocIDServer.close();		
-	}
 	
+	public static void setMaximumPagesToFetch(int max) {
+		maxPagesToFetch = max;
+	}
+
+	public static void close() {
+		sync();
+		workQueues.close();
+		DocIDServer.close();
+	}
+
 	public static void finish() {
 		isFinished = true;
 		synchronized (waitingList) {
