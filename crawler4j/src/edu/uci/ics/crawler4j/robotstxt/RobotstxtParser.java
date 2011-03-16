@@ -32,7 +32,7 @@ public class RobotstxtParser {
 	
 	private static final int PATTERNS_USERAGENT_LENGTH = 11;
 	private static final int PATTERNS_DISALLOW_LENGTH = 9;
-	private static final int PATTERNS_ALLOW_LENGTH = 11;
+	private static final int PATTERNS_ALLOW_LENGTH = 6;
 	
 	public static HostDirectives parse(String content, String myUserAgent) {
 		
