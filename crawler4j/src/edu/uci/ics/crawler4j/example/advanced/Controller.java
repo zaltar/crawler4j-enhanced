@@ -17,11 +17,16 @@
 
 package edu.uci.ics.crawler4j.example.advanced;
 
-import java.util.ArrayList;
+import java.util.List;
 
 import edu.uci.ics.crawler4j.crawler.CrawlController;
 
 public class Controller {
+	
+		/*
+		 * NOTE: You should first look at the simple example
+		 * for a description of the options and configs. 
+		 */
 
 		public static void main(String[] args) throws Exception {
 			if (args.length < 2) {
@@ -35,7 +40,7 @@ public class Controller {
 			controller.addSeed("http://www.ics.uci.edu/");
 			controller.start(MyCrawler.class, numberOfCrawlers);	
 			
-			ArrayList<Object> crawlersLocalData = controller.getCrawlersLocalData();
+			List<Object> crawlersLocalData = controller.getCrawlersLocalData();
 			long totalLinks = 0;
 			long totalTextSize = 0;
 			int totalProcessedPages = 0;

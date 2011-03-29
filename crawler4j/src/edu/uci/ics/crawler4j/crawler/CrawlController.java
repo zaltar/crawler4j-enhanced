@@ -21,6 +21,7 @@ import java.io.File;
 
 import java.lang.Thread.State;
 import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.log4j.Logger;
 
@@ -40,20 +41,22 @@ import edu.uci.ics.crawler4j.util.IO;
 
 public final class CrawlController {
 
-	private static final Logger logger = Logger.getLogger(CrawlController.class
-			.getName());
+	private static final Logger logger = Logger.getLogger(CrawlController.class.getName());
 
 	private Environment env;
+	private List<Object> crawlersLocalData = new ArrayList<Object>();
 
-	private ArrayList<Object> crawlersLocalData = new ArrayList<Object>();
-
-	public ArrayList<Object> getCrawlersLocalData() {
+	public List<Object> getCrawlersLocalData() {
 		return crawlersLocalData;
 	}
 
-	ArrayList<Thread> threads;
+	List<Thread> threads;
 
 	public CrawlController(String storageFolder) throws Exception {
+		this(storageFolder, Configurations.getBooleanProperty("crawler.enable_resume", true));
+	}
+	
+	public CrawlController(String storageFolder, boolean resumable) throws Exception {
 		File folder = new File(storageFolder);
 		if (!folder.exists()) {
 			folder.mkdirs();
@@ -61,19 +64,21 @@ public final class CrawlController {
 
 		EnvironmentConfig envConfig = new EnvironmentConfig();
 		envConfig.setAllowCreate(true);
-		envConfig.setTransactional(false);
-		envConfig.setLocking(false);
+		envConfig.setTransactional(resumable);
+		envConfig.setLocking(resumable);
 
 		File envHome = new File(storageFolder + "/frontier");
 		if (!envHome.exists()) {
 			envHome.mkdir();
 		}
-		IO.deleteFolderContents(envHome);
+		if (!resumable) {
+			IO.deleteFolderContents(envHome);
+		}
 
 		env = new Environment(envHome, envConfig);
-		Frontier.init(env);
-		DocIDServer.init(env);
-		
+		Frontier.init(env, resumable);
+		DocIDServer.init(env, resumable);
+
 		PageFetcher.startConnectionMonitorThread();
 	}
 
@@ -81,7 +86,7 @@ public final class CrawlController {
 		try {
 			crawlersLocalData.clear();
 			threads = new ArrayList<Thread>();
-			ArrayList<T> crawlers = new ArrayList<T>();
+			List<T> crawlers = new ArrayList<T>();
 			int numberofCrawlers = numberOfCrawlers;
 			for (int i = 1; i <= numberofCrawlers; i++) {
 				T crawler = _c.newInstance();
@@ -100,8 +105,7 @@ public final class CrawlController {
 				for (int i = 0; i < threads.size(); i++) {
 					Thread thread = threads.get(i);
 					if (!thread.isAlive()) {
-						logger.info("Thread " + i
-								+ " was dead, I'll recreate it.");
+						logger.info("Thread " + i + " was dead, I'll recreate it.");
 						T crawler = _c.newInstance();
 						thread = new Thread(crawler, "Crawler " + (i + 1));
 						threads.remove(i);
@@ -120,16 +124,16 @@ public final class CrawlController {
 					// Make sure again that none of the threads are alive.
 					logger.info("It looks like no thread is working, waiting for 40 seconds to make sure...");
 					sleep(40);
-					
+
 					if (!isAnyThreadWorking()) {
 						long queueLength = Frontier.getQueueLength();
-						if (queueLength > 0) {							
+						if (queueLength > 0) {
 							continue;
 						}
 						logger.info("No thread is working and no more URLs are in queue waiting for another 60 seconds to make sure...");
 						sleep(60);
 						queueLength = Frontier.getQueueLength();
-						if (queueLength > 0) {							
+						if (queueLength > 0) {
 							continue;
 						}
 						logger.info("All of the crawlers are stopped. Finishing the process...");
@@ -137,13 +141,13 @@ public final class CrawlController {
 							crawler.onBeforeExit();
 							crawlersLocalData.add(crawler.getMyLocalData());
 						}
-						
+
 						// At this step, frontier notifies the threads that were waiting for new URLs and they should stop
 						// We will wait a few seconds for them and then return.
 						Frontier.finish();
 						logger.info("Waiting for 10 seconds before final clean up...");
 						sleep(10);
-						
+
 						Frontier.close();
 						PageFetcher.stopConnectionMonitorThread();
 						return;
@@ -161,13 +165,12 @@ public final class CrawlController {
 		} catch (Exception e) {
 		}
 	}
-	
+
 	private boolean isAnyThreadWorking() {
 		boolean someoneIsWorking = false;
 		for (int i = 0; i < threads.size(); i++) {
 			Thread thread = threads.get(i);
-			if (thread.isAlive()
-					&& thread.getState() == State.RUNNABLE) {
+			if (thread.isAlive() && thread.getState() == State.RUNNABLE) {
 				someoneIsWorking = true;
 			}
 		}
@@ -185,10 +188,11 @@ public final class CrawlController {
 			// This URL is already seen.
 			return;
 		}
-		
+
 		WebURL webUrl = new WebURL();
 		webUrl.setURL(canonicalUrl);
-		webUrl.setDocid(-docid);
+		docid = DocIDServer.getNewDocID(canonicalUrl);
+		webUrl.setDocid(docid);
 		webUrl.setDepth((short) 0);
 		if (!RobotstxtServer.allows(webUrl)) {
 			logger.info("Robots.txt does not allow this seed: " + pageUrl);
@@ -196,7 +200,7 @@ public final class CrawlController {
 			Frontier.schedule(webUrl);
 		}
 	}
-	
+
 	public void setPolitenessDelay(int milliseconds) {
 		if (milliseconds < 0) {
 			return;
@@ -206,7 +210,7 @@ public final class CrawlController {
 		}
 		PageFetcher.setPolitenessDelay(milliseconds);
 	}
-	
+
 	public void setMaximumCrawlDepth(int depth) throws Exception {
 		if (depth < -1) {
 			throw new Exception("Maximum crawl depth should be either a positive number or -1 for unlimited depth.");
@@ -216,17 +220,16 @@ public final class CrawlController {
 		}
 		WebCrawler.setMaximumCrawlDepth((short) depth);
 	}
-	
+
 	public void setMaximumPagesToFetch(int max) {
 		Frontier.setMaximumPagesToFetch(max);
 	}
-	
+
 	public void setProxy(String proxyHost, int proxyPort) {
 		PageFetcher.setProxy(proxyHost, proxyPort);
 	}
-	
-	public static void setProxy(String proxyHost, int proxyPort,
-			String username, String password) {
+
+	public static void setProxy(String proxyHost, int proxyPort, String username, String password) {
 		PageFetcher.setProxy(proxyHost, proxyPort, username, password);
 	}
 }

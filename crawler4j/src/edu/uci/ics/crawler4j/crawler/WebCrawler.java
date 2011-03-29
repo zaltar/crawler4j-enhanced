@@ -88,7 +88,7 @@ public class WebCrawler implements Runnable {
 	public void run() {
 		onStart();
 		while (true) {
-			ArrayList<WebURL> assignedURLs = new ArrayList<WebURL>(50);
+			List<WebURL> assignedURLs = new ArrayList<WebURL>(50);
 			Frontier.getNextURLs(50, assignedURLs);
 			if (assignedURLs.size() == 0) {
 				if (Frontier.isFinished()) {
@@ -102,7 +102,11 @@ public class WebCrawler implements Runnable {
 			} else {
 				for (WebURL curURL : assignedURLs) {
 					if (curURL != null) {
-						preProcessPage(curURL);
+						if (curURL.getDocid() == 14) {
+							System.out.println();
+						}
+						processPage(curURL);
+						Frontier.setProcessed(curURL);
 					}
 				}
 			}
@@ -117,7 +121,7 @@ public class WebCrawler implements Runnable {
 		// Should be implemented in sub classes
 	}
 
-	private int preProcessPage(WebURL curURL) {
+	private int processPage(WebURL curURL) {
 		if (curURL == null) {
 			return -1;
 		}
@@ -140,10 +144,11 @@ public class WebCrawler implements Runnable {
 					} else {
 						WebURL webURL = new WebURL();
 						webURL.setURL(movedToUrl);
-						webURL.setDocid(-newdocid);
+						webURL.setParentDocid(curURL.getParentDocid());
+						webURL.setDepth((short) (curURL.getDepth()));
+						webURL.setDocid(-1);
 						if (shouldVisit(webURL) && RobotstxtServer.allows(webURL)) {
-							webURL.setParentDocid(curURL.getParentDocid());
-							webURL.setDepth((short) (curURL.getDepth()));
+							webURL.setDocid(DocIDServer.getNewDocID(movedToUrl));	
 							Frontier.schedule(webURL);
 						}
 					}
@@ -166,8 +171,8 @@ public class WebCrawler implements Runnable {
 				}
 
 				Iterator<String> it = htmlParser.getLinks().iterator();
-				ArrayList<WebURL> toSchedule = new ArrayList<WebURL>();
-				ArrayList<WebURL> toList = new ArrayList<WebURL>();
+				List<WebURL> toSchedule = new ArrayList<WebURL>();
+				List<WebURL> toList = new ArrayList<WebURL>();
 				while (it.hasNext()) {
 					String url = it.next();
 					if (url != null) {
@@ -182,13 +187,14 @@ public class WebCrawler implements Runnable {
 						} else {
 							WebURL webURL = new WebURL();
 							webURL.setURL(url);
-							webURL.setDocid(-newdocid);
-							toList.add(webURL);
+							webURL.setDocid(-1);
+							webURL.setParentDocid(docid);
+							webURL.setDepth((short) (curURL.getDepth() + 1));							
 							if (shouldVisit(webURL) && RobotstxtServer.allows(webURL)) {
 								if (MAX_CRAWL_DEPTH == -1 || curURL.getDepth() < MAX_CRAWL_DEPTH) {
-									webURL.setParentDocid(docid);
-									webURL.setDepth((short) (curURL.getDepth() + 1));
+									webURL.setDocid(DocIDServer.getNewDocID(url));
 									toSchedule.add(webURL);
+									toList.add(webURL);
 								}
 							}
 						}

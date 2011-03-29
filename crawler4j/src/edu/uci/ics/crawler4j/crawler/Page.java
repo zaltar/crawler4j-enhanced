@@ -21,7 +21,7 @@ import java.io.InputStream;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
-import java.util.ArrayList;
+import java.util.List;
 
 import edu.uci.ics.crawler4j.url.WebURL;
 
@@ -43,7 +43,7 @@ public class Page {
 	// It's null for html pages
 	private byte[] binaryData;
 
-	private ArrayList<WebURL> urls;
+	private List<WebURL> urls;
 
 	private ByteBuffer bBuf;
 
@@ -115,11 +115,11 @@ public class Page {
 		this.title = title;
 	}
 
-	public ArrayList<WebURL> getURLs() {
+	public List<WebURL> getURLs() {
 		return urls;
 	}
 
-	public void setURLs(ArrayList<WebURL> urls) {
+	public void setURLs(List<WebURL> urls) {
 		this.urls = urls;
 	}
 

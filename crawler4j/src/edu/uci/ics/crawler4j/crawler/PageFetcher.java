@@ -186,7 +186,7 @@ public final class PageFetcher {
 						}
 						WebURL webURL = new WebURL();
 						webURL.setURL(uri);
-						webURL.setDocid(-newdocid);
+						webURL.setDocid(DocIDServer.getNewDocID(uri));
 						page.setWebURL(webURL);
 					}
 				}

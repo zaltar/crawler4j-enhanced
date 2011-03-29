@@ -18,7 +18,7 @@
 package edu.uci.ics.crawler4j.example.advanced;
 
 import java.io.UnsupportedEncodingException;
-import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Pattern;
 
 import edu.uci.ics.crawler4j.crawler.Page;
@@ -50,7 +50,7 @@ public class MyCrawler extends WebCrawler {
 	
 	public void visit(Page page) {	
 		myCrawlStat.incProcessedPages();
-		ArrayList<WebURL> links = page.getURLs();		
+		List<WebURL> links = page.getURLs();		
 		myCrawlStat.incTotalLinks(links.size());
 		try {
 			myCrawlStat.incTotalTextSize(page.getText().getBytes("UTF-8").length);

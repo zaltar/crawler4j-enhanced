@@ -41,11 +41,20 @@ public final class URLCanonicalizer {
         }
 		href = href.replace(" ", "%20");
         try {
+        	URL canonicalURL;
         	if (context == null) {
-        		return new URL(href);
+        		canonicalURL = new URL(href);
         	} else {
-        		return new URL(new URL(context), href);
+        		canonicalURL = new URL(new URL(context), href);
         	}
+        	String path = canonicalURL.getPath();
+        	if (path.startsWith("/../")) {
+        		path = path.substring(3);
+        		canonicalURL = new URL(canonicalURL.getProtocol(), canonicalURL.getHost(), canonicalURL.getPort(), path);
+        	} else if (path.contains("..")) {
+        		System.out.println(path);
+        	}
+        	return canonicalURL;
         } catch (MalformedURLException ex) {
             return null;
         }

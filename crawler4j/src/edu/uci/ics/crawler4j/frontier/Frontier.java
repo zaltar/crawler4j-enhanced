@@ -17,8 +17,8 @@
 
 package edu.uci.ics.crawler4j.frontier;
 
-import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 
 import org.apache.log4j.Logger;
 
@@ -37,6 +37,7 @@ public final class Frontier {
 	private static final Logger logger = Logger.getLogger(Frontier.class.getName());
 
 	private static WorkQueues workQueues;
+	private static InProcessPagesDB inprocessPages;
 
 	private static Object mutex = Frontier.class.toString() + "_Mutex";
 
@@ -48,17 +49,34 @@ public final class Frontier {
 
 	private static int scheduledPages;
 
-	public static void init(Environment env) {
+	public static void init(Environment env, boolean resumable) {
 		try {
-			workQueues = new WorkQueues(env);
-			scheduledPages = 0;
+			workQueues = new WorkQueues(env, "PendingURLsDB", resumable);
+			if (resumable) {
+				inprocessPages = new InProcessPagesDB(env);
+				long docCount = inprocessPages.getLength();
+				if (docCount > 0) {
+					logger.info("Rescheduling " + docCount + " URLs from previous crawl.");
+					while (true) {
+						List<WebURL> urls = inprocessPages.get(100);
+						if (urls.size() == 0) {
+							break;
+						}
+						inprocessPages.delete(urls.size());
+						scheduleAll(urls);
+					}
+				}
+			} else {
+				inprocessPages = null;
+				scheduledPages = 0;
+			}			
 		} catch (DatabaseException e) {
 			logger.error("Error while initializing the Frontier: " + e.getMessage());
 			workQueues = null;
 		}
 	}
 
-	public static void scheduleAll(ArrayList<WebURL> urls) {
+	public static void scheduleAll(List<WebURL> urls) {
 		synchronized (mutex) {
 			Iterator<WebURL> it = urls.iterator();
 			while (it.hasNext()) {
@@ -91,13 +109,18 @@ public final class Frontier {
 		}
 	}
 
-	public static void getNextURLs(int max, ArrayList<WebURL> result) {
+	public static void getNextURLs(int max, List<WebURL> result) {
 		while (true) {
 			synchronized (mutex) {
 				try {
-					ArrayList<WebURL> curResults = workQueues.get(max);
+					List<WebURL> curResults = workQueues.get(max);
 					workQueues.delete(curResults.size());
-					result.addAll(curResults);
+					if (inprocessPages != null) {
+						for (WebURL curPage : curResults) {
+							inprocessPages.put(curPage);
+						}
+					}
+					result.addAll(curResults);					
 				} catch (DatabaseException e) {
 					logger.error("Error while getting next urls: " + e.getMessage());
 					e.printStackTrace();
@@ -117,11 +140,23 @@ public final class Frontier {
 			}
 		}
 	}
-
-	public static long getQueueLength() {
-		return workQueues.getQueueLength();
+	
+	public static void setProcessed(WebURL webURL) {
+		if (inprocessPages != null) {
+			if (!inprocessPages.removeURL(webURL)) {
+				logger.warn("Could not remove: " + webURL.getURL() + " from list of processed pages.");
+			}
+		}
 	}
 
+	public static long getQueueLength() {
+		return workQueues.getLength();
+	}
+
+	public static long getNumberOfAssignedPages() {
+		return inprocessPages.getLength();
+	}
+	
 	public static void sync() {
 		workQueues.sync();
 		DocIDServer.sync();

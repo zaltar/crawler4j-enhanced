@@ -17,7 +17,7 @@
 
 package edu.uci.ics.crawler4j.example.simple;
 
-import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Pattern;
 
 import edu.uci.ics.crawler4j.crawler.Page;
@@ -42,7 +42,7 @@ public class MyCrawler extends WebCrawler {
 		if (filters.matcher(href).matches()) {
 			return false;
 		}
-		if (href.startsWith("http://www.cnn.com/")) {
+		if (href.startsWith("http://www.ics.uci.edu/")) {
 			return true;
 		}
 		return false;
@@ -52,7 +52,7 @@ public class MyCrawler extends WebCrawler {
 		int docid = page.getWebURL().getDocid();
         String url = page.getWebURL().getURL();         
         String text = page.getText();
-        ArrayList<WebURL> links = page.getURLs();
+        List<WebURL> links = page.getURLs();
 		int parentDocid = page.getWebURL().getParentDocid();
 		
 		System.out.println("Docid: " + docid);
