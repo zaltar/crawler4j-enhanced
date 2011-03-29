@@ -71,7 +71,7 @@ public final class PageFetcher {
 	public static final int MAX_DOWNLOAD_SIZE = Configurations.getIntProperty("fetcher.max_download_size", 1048576);
 
 	private static final boolean show404Pages = Configurations.getBooleanProperty("logging.show_404_pages", true);
-	
+
 	private static IdleConnectionMonitorThread connectionMonitorThread = null;
 
 	public static long getPolitenessDelay() {
@@ -213,10 +213,13 @@ public final class PageFetcher {
 				boolean isBinary = false;
 
 				Header type = entity.getContentType();
-				if (type != null && type.getValue().toLowerCase().contains("image")) {
-					isBinary = true;
-					if (ignoreIfBinary) {
-						return PageFetchStatus.PageIsBinary;
+				if (type != null) {
+					String typeStr = type.getValue().toLowerCase();
+					if (typeStr.contains("image") || typeStr.contains("audio") || typeStr.contains("video")) {
+						isBinary = true;
+						if (ignoreIfBinary) {
+							return PageFetchStatus.PageIsBinary;
+						}
 					}
 				}
 

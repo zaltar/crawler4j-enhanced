@@ -46,7 +46,7 @@ public class WebCrawler implements Runnable {
 	private CrawlController myController;
 
 	private static short MAX_CRAWL_DEPTH = Configurations.getShortProperty("crawler.max_depth", (short) -1);
-	private static boolean IGNORE_BINARY_CONTENT = !Configurations.getBooleanProperty("crawler.include_images", false);
+	private static boolean IGNORE_BINARY_CONTENT = !Configurations.getBooleanProperty("crawler.include_binary_content", false);
 	private static final boolean FOLLOW_REDIRECTS = Configurations.getBooleanProperty("fetcher.follow_redirects", true);
 
 	public CrawlController getMyController() {
