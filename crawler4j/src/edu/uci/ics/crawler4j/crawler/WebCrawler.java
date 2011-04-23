@@ -37,7 +37,7 @@ public class WebCrawler implements Runnable {
 
 	private Thread myThread;
 
-	private final static int PROCESS_OK = -12;
+	protected final static int PROCESS_OK = -12;
 
 	private HTMLParser htmlParser;
 
@@ -45,8 +45,8 @@ public class WebCrawler implements Runnable {
 
 	private CrawlController myController;
 
+	protected static boolean IGNORE_BINARY_CONTENT = !Configurations.getBooleanProperty("crawler.include_binary_content", false);
 	private static short MAX_CRAWL_DEPTH = Configurations.getShortProperty("crawler.max_depth", (short) -1);
-	private static boolean IGNORE_BINARY_CONTENT = !Configurations.getBooleanProperty("crawler.include_binary_content", false);
 	private static final boolean FOLLOW_REDIRECTS = Configurations.getBooleanProperty("fetcher.follow_redirects", true);
 
 	public CrawlController getMyController() {
@@ -127,9 +127,6 @@ public class WebCrawler implements Runnable {
 		}
 		Page page = new Page(curURL);
 		int statusCode = PageFetcher.fetch(page, IGNORE_BINARY_CONTENT);
-		// The page might have been redirected. So we have to refresh curURL
-		curURL = page.getWebURL();
-		int docid = curURL.getDocid();
 		if (statusCode != PageFetchStatus.OK) {
 			if (statusCode == PageFetchStatus.Moved) {
 				if (FOLLOW_REDIRECTS) {
@@ -159,8 +156,14 @@ public class WebCrawler implements Runnable {
 			}
 			return statusCode;
 		}
-
+		
+		return findLinks(page);
+	}
+	
+	protected int findLinks(Page page) {
+		WebURL curURL = page.getWebURL();
 		try {
+			
 			if (!page.isBinary()) {
 				htmlParser.parse(page.getHTML(), curURL.getURL());
 				page.setText(htmlParser.getText());
@@ -178,7 +181,7 @@ public class WebCrawler implements Runnable {
 					if (url != null) {
 						int newdocid = DocIDServer.getDocID(url);
 						if (newdocid > 0) {
-							if (newdocid != docid) {
+							if (newdocid != curURL.getDocid()) {
 								WebURL webURL = new WebURL();
 								webURL.setURL(url);
 								webURL.setDocid(newdocid);
@@ -188,7 +191,7 @@ public class WebCrawler implements Runnable {
 							WebURL webURL = new WebURL();
 							webURL.setURL(url);
 							webURL.setDocid(-1);
-							webURL.setParentDocid(docid);
+							webURL.setParentDocid(curURL.getDocid());
 							webURL.setDepth((short) (curURL.getDepth() + 1));							
 							if (shouldVisit(webURL) && RobotstxtServer.allows(webURL)) {
 								if (MAX_CRAWL_DEPTH == -1 || curURL.getDepth() < MAX_CRAWL_DEPTH) {
@@ -208,6 +211,7 @@ public class WebCrawler implements Runnable {
 			e.printStackTrace();
 			logger.error(e.getMessage() + ", while processing: " + curURL.getURL());
 		}
+		
 		return PROCESS_OK;
 	}
 
