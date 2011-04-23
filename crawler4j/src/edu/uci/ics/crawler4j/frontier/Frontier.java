@@ -19,6 +19,7 @@ package edu.uci.ics.crawler4j.frontier;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.Logger;
 
@@ -43,11 +44,15 @@ public final class Frontier {
 
 	private static Object waitingList = Frontier.class.toString() + "_WaitingList";
 
-	private static boolean isFinished = false;
+	private static volatile boolean isFinished = false;
 
 	private static int maxPagesToFetch = Configurations.getIntProperty("crawler.max_pages_to_fetch", -1);
 
-	private static int scheduledPages;
+	private static AtomicInteger scheduledPages = new AtomicInteger();
+	
+	private static int threads;
+	
+	private static int waitingThreads;
 
 	public static void init(Environment env, boolean resumable) {
 		try {
@@ -62,13 +67,12 @@ public final class Frontier {
 						if (urls.size() == 0) {
 							break;
 						}
-						inprocessPages.delete(urls.size());
 						scheduleAll(urls);
 					}
 				}
 			} else {
 				inprocessPages = null;
-				scheduledPages = 0;
+				scheduledPages.set(0);
 			}			
 		} catch (DatabaseException e) {
 			logger.error("Error while initializing the Frontier: " + e.getMessage());
@@ -77,14 +81,13 @@ public final class Frontier {
 	}
 
 	public static void scheduleAll(List<WebURL> urls) {
-		synchronized (mutex) {
 			Iterator<WebURL> it = urls.iterator();
 			while (it.hasNext()) {
 				WebURL url = it.next();
-				if (maxPagesToFetch < 0 || scheduledPages < maxPagesToFetch) {					
+				if (maxPagesToFetch < 0 || scheduledPages.get() < maxPagesToFetch) {					
 					try {
 						workQueues.put(url);
-						scheduledPages++;
+						scheduledPages.incrementAndGet();
 					} catch (DatabaseException e) {
 						logger.error("Error while puting the url in the work queue.");
 					}
@@ -93,50 +96,53 @@ public final class Frontier {
 			synchronized (waitingList) {
 				waitingList.notifyAll();
 			}
-		}
 	}
 
 	public static void schedule(WebURL url) {
-		synchronized (mutex) {
 			try {
-				if (maxPagesToFetch < 0 || scheduledPages < maxPagesToFetch) {
+				if (maxPagesToFetch < 0 || scheduledPages.get() < maxPagesToFetch) {
 					workQueues.put(url);
-					scheduledPages++;
+					scheduledPages.incrementAndGet();
 				}
 			} catch (DatabaseException e) {
 				logger.error("Error while puting the url in the work queue.");
 			}
-		}
+			synchronized (waitingList) {
+				waitingList.notify();
+			}
 	}
 
 	public static void getNextURLs(int max, List<WebURL> result) {
-		while (true) {
-			synchronized (mutex) {
-				try {
-					List<WebURL> curResults = workQueues.get(max);
-					workQueues.delete(curResults.size());
-					if (inprocessPages != null) {
-						for (WebURL curPage : curResults) {
-							inprocessPages.put(curPage);
-						}
+		while (!isFinished) {
+			try {
+				List<WebURL> curResults = workQueues.get(max);
+				if (inprocessPages != null) {
+					for (WebURL curPage : curResults) {
+						inprocessPages.put(curPage);
 					}
-					result.addAll(curResults);					
-				} catch (DatabaseException e) {
-					logger.error("Error while getting next urls: " + e.getMessage());
-					e.printStackTrace();
 				}
-				if (result.size() > 0) {
+				result.addAll(curResults);					
+			} catch (DatabaseException e) {
+				logger.error("Error while getting next urls: " + e.getMessage());
+				e.printStackTrace();
+			}
+			if (result.size() > 0) {
+				return;
+			}
+			
+			synchronized (waitingList) {
+				waitingThreads++;
+				if (waitingThreads == threads) {
+					//We are all done!
+					Frontier.finish();
 					return;
 				}
-			}
-			try {
-				synchronized (waitingList) {
+				try {
 					waitingList.wait();
+				} catch (InterruptedException e) {
+					//loop around and try again if we're not finished
 				}
-			} catch (InterruptedException e) {
-			}
-			if (isFinished) {
-				return;
+				waitingThreads--;
 			}
 		}
 	}
@@ -181,5 +187,13 @@ public final class Frontier {
 		synchronized (waitingList) {
 			waitingList.notifyAll();
 		}
+	}
+
+	public static void setThreads(int threads) {
+		Frontier.threads = threads;
+	}
+
+	public static int getThreads() {
+		return threads;
 	}
 }

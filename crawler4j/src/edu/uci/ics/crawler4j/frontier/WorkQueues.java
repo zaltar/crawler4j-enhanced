@@ -82,6 +82,7 @@ public class WorkQueues {
 						WebURL curi = (WebURL) webURLBinding.entryToObject(value);
 						results.add(curi);
 						matches++;
+						cursor.delete();
 					}
 					result = cursor.getNext(key, value, null);
 				}
@@ -102,47 +103,7 @@ public class WorkQueues {
 			return results;
 		}
 	}
-
-	public void delete(int count) throws DatabaseException {
-		synchronized (mutex) {
-			int matches = 0;
-
-			Cursor cursor = null;
-			OperationStatus result = null;
-			DatabaseEntry key = new DatabaseEntry();
-			DatabaseEntry value = new DatabaseEntry();
-			Transaction txn;
-			if (resumable) {
-				txn = env.beginTransaction(null, null);
-			} else {
-				txn = null;
-			}
-			try {
-				cursor = urlsDB.openCursor(txn, null);
-				result = cursor.getFirst(key, value, null);
-
-				while (matches < count && result == OperationStatus.SUCCESS) {
-					cursor.delete();
-					matches++;
-					result = cursor.getNext(key, value, null);
-				}
-			} catch (DatabaseException e) {
-				if (txn != null) {
-					txn.abort();
-					txn = null;
-				}
-				throw e;
-			} finally {
-				if (cursor != null) {
-					cursor.close();
-				}
-				if (txn != null) {
-					txn.commit();
-				}
-			}
-		}
-	}
-
+	
 	public void put(WebURL curi) throws DatabaseException {
 		byte[] keyData = Util.int2ByteArray(curi.getDocid());
 		DatabaseEntry value = new DatabaseEntry();

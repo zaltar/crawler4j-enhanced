@@ -90,24 +90,15 @@ public class WebCrawler implements Runnable {
 		while (true) {
 			List<WebURL> assignedURLs = new ArrayList<WebURL>(50);
 			Frontier.getNextURLs(50, assignedURLs);
-			if (assignedURLs.size() == 0) {
-				if (Frontier.isFinished()) {
-					return;
-				}
-				try {
-					Thread.sleep(3000);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
-			} else {
-				for (WebURL curURL : assignedURLs) {
-					if (curURL != null) {
-						if (curURL.getDocid() == 14) {
-							System.out.println();
-						}
-						processPage(curURL);
-						Frontier.setProcessed(curURL);
-					}
+			if (Frontier.isFinished()) {
+				onBeforeExit();
+				return;
+			}
+			
+			for (WebURL curURL : assignedURLs) {
+				if (curURL != null) {
+					processPage(curURL);
+					Frontier.setProcessed(curURL);
 				}
 			}
 		}

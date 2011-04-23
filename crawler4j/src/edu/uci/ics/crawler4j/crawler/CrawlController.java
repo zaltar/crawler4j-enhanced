@@ -87,8 +87,8 @@ public final class CrawlController {
 			crawlersLocalData.clear();
 			threads = new ArrayList<Thread>();
 			List<T> crawlers = new ArrayList<T>();
-			int numberofCrawlers = numberOfCrawlers;
-			for (int i = 1; i <= numberofCrawlers; i++) {
+			Frontier.setThreads(numberOfCrawlers);
+			for (int i = 1; i <= numberOfCrawlers; i++) {
 				T crawler = _c.newInstance();
 				Thread thread = new Thread(crawler, "Crawler " + i);
 				crawler.setThread(thread);
@@ -99,82 +99,16 @@ public final class CrawlController {
 				threads.add(thread);
 				logger.info("Crawler " + i + " started.");
 			}
-			while (true) {
-				sleep(10);
-				boolean someoneIsWorking = false;
-				for (int i = 0; i < threads.size(); i++) {
-					Thread thread = threads.get(i);
-					if (!thread.isAlive()) {
-						logger.info("Thread " + i + " was dead, I'll recreate it.");
-						T crawler = _c.newInstance();
-						thread = new Thread(crawler, "Crawler " + (i + 1));
-						threads.remove(i);
-						threads.add(i, thread);
-						crawler.setThread(thread);
-						crawler.setMyId(i + 1);
-						crawler.setMyController(this);
-						thread.start();
-						crawlers.remove(i);
-						crawlers.add(i, crawler);
-					} else if (thread.getState() == State.RUNNABLE) {
-						someoneIsWorking = true;
-					}
-				}
-				if (!someoneIsWorking) {
-					// Make sure again that none of the threads are alive.
-					logger.info("It looks like no thread is working, waiting for 40 seconds to make sure...");
-					sleep(40);
-
-					if (!isAnyThreadWorking()) {
-						long queueLength = Frontier.getQueueLength();
-						if (queueLength > 0) {
-							continue;
-						}
-						logger.info("No thread is working and no more URLs are in queue waiting for another 60 seconds to make sure...");
-						sleep(60);
-						queueLength = Frontier.getQueueLength();
-						if (queueLength > 0) {
-							continue;
-						}
-						logger.info("All of the crawlers are stopped. Finishing the process...");
-						for (T crawler : crawlers) {
-							crawler.onBeforeExit();
-							crawlersLocalData.add(crawler.getMyLocalData());
-						}
-
-						// At this step, frontier notifies the threads that were waiting for new URLs and they should stop
-						// We will wait a few seconds for them and then return.
-						Frontier.finish();
-						logger.info("Waiting for 10 seconds before final clean up...");
-						sleep(10);
-
-						Frontier.close();
-						PageFetcher.stopConnectionMonitorThread();
-						return;
-					}
-				}
+			for (T c : crawlers) {
+				c.getThread().join();
+				crawlersLocalData.add(c.getMyLocalData());
+				logger.info("Crawler " + c.getMyId() + " ended.");
 			}
+			PageFetcher.stopConnectionMonitorThread();
+			logger.info("Crawler complete");
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-	}
-
-	private void sleep(int seconds) {
-		try {
-			Thread.sleep(seconds * 1000);
-		} catch (Exception e) {
-		}
-	}
-
-	private boolean isAnyThreadWorking() {
-		boolean someoneIsWorking = false;
-		for (int i = 0; i < threads.size(); i++) {
-			Thread thread = threads.get(i);
-			if (thread.isAlive() && thread.getState() == State.RUNNABLE) {
-				someoneIsWorking = true;
-			}
-		}
-		return someoneIsWorking;
 	}
 
 	public void addSeed(String pageUrl) {
