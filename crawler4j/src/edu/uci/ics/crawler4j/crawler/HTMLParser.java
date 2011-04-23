@@ -73,28 +73,34 @@ public class HTMLParser {
 		}
 
 		int urlCount = 0;
+		if (linkExtractor.metaRefresh() != null) {
+			urlCount += handleLink(linkExtractor.metaRefresh(), contextURL);
+		}
+		
 		while (it.hasNext()) {
-			String href = it.next();
-			href = href.trim();
-			if (href.length() == 0) {
-				continue;
-			}
-			String hrefWithoutProtocol = href.toLowerCase();
-			if (href.startsWith("http://")) {
-				hrefWithoutProtocol = href.substring(7);
-			}
-			if (hrefWithoutProtocol.indexOf("javascript:") < 0
-					&& hrefWithoutProtocol.indexOf("@") < 0) {
-				URL url = URLCanonicalizer.getCanonicalURL(href, contextURL);
-				if (url != null) {
-					urls.add(url.toExternalForm());
-					urlCount++;
-					if (urlCount > MAX_OUT_LINKS) {
-						break;
-					}	
-				}				
+			urlCount += handleLink(it.next(), contextURL);
+			if (urlCount > MAX_OUT_LINKS) {
+				break;
 			}
 		}
+	}
+	
+	private int handleLink(String href, String contextURL) {
+		href = href.trim();
+		if (href.length() == 0) {
+			return 0;
+		}
+		
+		if (href.indexOf("javascript:") < 0
+				&& href.indexOf("@") < 0) {
+			URL url = URLCanonicalizer.getCanonicalURL(href, contextURL);
+			if (url != null) {
+				urls.add(url.toExternalForm());
+				return 1;
+			}				
+		}
+		
+		return 0;
 	}
 
 	public String getText() {
