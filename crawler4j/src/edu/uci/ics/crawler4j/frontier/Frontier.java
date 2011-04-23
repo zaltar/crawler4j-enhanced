@@ -40,8 +40,6 @@ public final class Frontier {
 	private static WorkQueues workQueues;
 	private static InProcessPagesDB inprocessPages;
 
-	private static Object mutex = Frontier.class.toString() + "_Mutex";
-
 	private static Object waitingList = Frontier.class.toString() + "_WaitingList";
 
 	private static volatile boolean isFinished = false;
