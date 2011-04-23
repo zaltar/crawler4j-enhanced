@@ -38,6 +38,16 @@ public final class WebURL implements Serializable {
 	private int parentDocid;
 	private short depth;
 	
+	public WebURL() {
+	}
+	
+	public WebURL(WebURL copy) {
+		url = copy.url;
+		docid = copy.docid;
+		parentDocid = copy.parentDocid;
+		depth = copy.depth;
+	}
+	
 	public int getDocid() {
 		return docid;
 	}

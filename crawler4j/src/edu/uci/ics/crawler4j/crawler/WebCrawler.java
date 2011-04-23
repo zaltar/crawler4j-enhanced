@@ -133,7 +133,7 @@ public class WebCrawler implements Runnable {
 		if (statusCode != PageFetchStatus.OK) {
 			if (statusCode == PageFetchStatus.Moved) {
 				if (FOLLOW_REDIRECTS) {
-					String movedToUrl = curURL.getURL();
+					String movedToUrl = page.getRedirectedURL();
 					if (movedToUrl == null) {
 						return PageFetchStatus.MovedToUnknownLocation;
 					}

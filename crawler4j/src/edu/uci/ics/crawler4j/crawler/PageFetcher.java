@@ -162,9 +162,11 @@ public final class PageFetcher {
 						Header header = response.getFirstHeader("Location");
 						if (header != null) {
 							String movedToUrl = header.getValue();
-							page.getWebURL().setURL(movedToUrl);
-						} else {
-							page.getWebURL().setURL(null);
+							//Handle redirects that are relative (violates RFC 1945)
+							if (movedToUrl != null && movedToUrl.startsWith("/")) {
+								movedToUrl = URLCanonicalizer.getCanonicalURL(movedToUrl, toFetchURL).toExternalForm();
+							}
+							page.setRedirectedURL(movedToUrl);
 						}
 						return PageFetchStatus.Moved;
 					}

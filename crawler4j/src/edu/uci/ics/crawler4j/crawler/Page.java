@@ -32,6 +32,8 @@ import edu.uci.ics.crawler4j.url.WebURL;
 public class Page {
 
 	private WebURL url;
+	
+	private String redirectedURL;
 
 	private String html;
 
@@ -92,7 +94,7 @@ public class Page {
 	}
 
 	public Page(WebURL url) {
-		this.url = url;
+		this.url = new WebURL(url);
 	}
 
 	public String getHTML() {
@@ -138,6 +140,14 @@ public class Page {
 
 	public byte[] getBinaryData() {
 		return binaryData;
+	}
+
+	public void setRedirectedURL(String redirectedURL) {
+		this.redirectedURL = redirectedURL;
+	}
+
+	public String getRedirectedURL() {
+		return redirectedURL;
 	}
 
 }
