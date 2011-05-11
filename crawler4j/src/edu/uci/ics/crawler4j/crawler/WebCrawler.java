@@ -44,7 +44,7 @@ public class WebCrawler implements Runnable {
 	int myid;
 
 	private CrawlController myController;
-
+	
 	protected static boolean IGNORE_BINARY_CONTENT = !Configurations.getBooleanProperty("crawler.include_binary_content", false);
 	private static short MAX_CRAWL_DEPTH = Configurations.getShortProperty("crawler.max_depth", (short) -1);
 	private static final boolean FOLLOW_REDIRECTS = Configurations.getBooleanProperty("fetcher.follow_redirects", true);
@@ -133,7 +133,7 @@ public class WebCrawler implements Runnable {
 						WebURL webURL = new WebURL();
 						webURL.setURL(movedToUrl);
 						webURL.setParentDocid(curURL.getParentDocid());
-						webURL.setDepth((short) (curURL.getDepth()));
+						webURL.setDepth(curURL.getDepth());
 						webURL.setDocid(-1);
 						if (shouldVisit(webURL) && RobotstxtServer.allows(webURL)) {
 							webURL.setDocid(DocIDServer.getNewDocID(movedToUrl));	
