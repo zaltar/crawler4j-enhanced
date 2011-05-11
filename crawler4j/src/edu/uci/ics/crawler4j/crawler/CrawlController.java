@@ -18,17 +18,13 @@
 package edu.uci.ics.crawler4j.crawler;
 
 import java.io.File;
-
-import java.lang.Thread.State;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
-
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.log4j.Logger;
-
 import com.sleepycat.je.Environment;
 import com.sleepycat.je.EnvironmentConfig;
-
 import edu.uci.ics.crawler4j.frontier.DocIDServer;
 import edu.uci.ics.crawler4j.frontier.Frontier;
 import edu.uci.ics.crawler4j.robotstxt.RobotstxtServer;
@@ -41,24 +37,28 @@ import edu.uci.ics.crawler4j.util.IO;
  */
 
 public final class CrawlController {
-
 	private static final Logger logger = Logger.getLogger(CrawlController.class.getName());
-
+	
+	private List<WebCrawler> crawlers = new ArrayList<WebCrawler>();
 	private Frontier frontier;
 	private Environment env;
 	private List<Object> crawlersLocalData = new ArrayList<Object>();
-
+	private ICrawlComplete completeCallback = null;
+	private AtomicBoolean running = new AtomicBoolean(false);
+	
 	public List<Object> getCrawlersLocalData() {
 		return crawlersLocalData;
 	}
+	
+	public void setCompleteCallback(ICrawlComplete value) {
+		completeCallback = value;
+	}
 
-	List<Thread> threads;
-
-	public CrawlController(String storageFolder) throws Exception {
+	public CrawlController(String storageFolder) {
 		this(storageFolder, Configurations.getBooleanProperty("crawler.enable_resume", true));
 	}
 	
-	public CrawlController(String storageFolder, boolean resumable) throws Exception {
+	public CrawlController(String storageFolder, boolean resumable) {
 		File folder = new File(storageFolder);
 		if (!folder.exists()) {
 			folder.mkdirs();
@@ -83,7 +83,7 @@ public final class CrawlController {
 
 		PageFetcher.startConnectionMonitorThread();
 	}
-	
+
 	public <T extends WebCrawler> void start(final Class<T> _c, int numberOfCrawlers) throws Exception {
 		start(new Callable<WebCrawler>() {
 			public WebCrawler call() {
@@ -95,34 +95,56 @@ public final class CrawlController {
 			}
 		}, numberOfCrawlers);
 	}
-
+	
 	public void start(Callable<WebCrawler> crawlerFactory, int numberOfCrawlers) throws Exception {
-		try {
+		if (!running.getAndSet(true)) {
 			crawlersLocalData.clear();
-			threads = new ArrayList<Thread>();
-			List<WebCrawler> crawlers = new ArrayList<WebCrawler>();
 			frontier.setThreads(numberOfCrawlers);
-			for (int i = 1; i <= numberOfCrawlers; i++) {
-				WebCrawler crawler = crawlerFactory.call();
-				Thread thread = new Thread(crawler, "Crawler " + i);
-				crawler.setThread(thread);
-				crawler.setMyId(i);
-				crawler.setMyController(this);
-				thread.start();
-				crawlers.add(crawler);
-				threads.add(thread);
-				logger.info("Crawler " + i + " started.");
+			try {
+				for (int i = 1; i <= numberOfCrawlers; i++) {
+					WebCrawler crawler = crawlerFactory.call();
+					Thread thread = new Thread(crawler, "Crawler " + i);
+					crawler.setThread(thread);
+					crawler.setMyId(i);
+					crawler.setMyController(this);
+					thread.start();
+					crawlers.add(crawler);
+					logger.info("Crawler " + i + " started.");
+				}
+			} catch (Exception e) {
+				logger.error("Exception created crawler thread.", e);
+				frontier.finish();
+				throw e;
 			}
-			for (WebCrawler c : crawlers) {
-				c.getThread().join();
-				crawlersLocalData.add(c.getMyLocalData());
-				logger.info("Crawler " + c.getMyId() + " ended.");
-			}
-			PageFetcher.stopConnectionMonitorThread();
-			logger.info("Crawler complete");
-		} catch (Exception e) {
-			e.printStackTrace();
+			
+			final CrawlController that = this;
+			new Thread(new Runnable() {
+				public void run() {
+					waitForFinish();
+					if (completeCallback != null) {
+						completeCallback.crawlComplete(that);
+					}
+				}
+			}).start();
+		} else {
+			throw new Exception("Already started!");
 		}
+	}
+	
+	public void waitForFinish() {
+		for (WebCrawler c : crawlers) {
+			while (c.getThread().isAlive()) {
+				try {
+					c.getThread().join();
+				} catch (InterruptedException ie) { }
+			}
+			crawlersLocalData.add(c.getMyLocalData());
+			logger.info("Crawler " + c.getMyId() + " ended.");
+		}
+		PageFetcher.stopConnectionMonitorThread();
+		logger.info("Crawler complete");
+		frontier.close();
+		running.set(false);
 	}
 
 	public void addSeed(String pageUrl) {
@@ -159,12 +181,9 @@ public final class CrawlController {
 		PageFetcher.setPolitenessDelay(milliseconds);
 	}
 
-	public void setMaximumCrawlDepth(int depth) throws Exception {
-		if (depth < -1) {
-			throw new Exception("Maximum crawl depth should be either a positive number or -1 for unlimited depth.");
-		}
-		if (depth > Short.MAX_VALUE) {
-			throw new Exception("Maximum value for crawl depth is " + Short.MAX_VALUE);
+	public void setMaximumCrawlDepth(int depth) throws NumberFormatException {
+		if (depth < -1 || depth > Short.MAX_VALUE) {
+			throw new NumberFormatException("Maximum crawl depth should be either a positive number or -1 for unlimited depth.");
 		}
 		WebCrawler.setMaximumCrawlDepth((short) depth);
 	}
@@ -180,7 +199,7 @@ public final class CrawlController {
 	public static void setProxy(String proxyHost, int proxyPort, String username, String password) {
 		PageFetcher.setProxy(proxyHost, proxyPort, username, password);
 	}
-	
+
 	public Frontier getFrontier() {
 		return frontier;
 	}
