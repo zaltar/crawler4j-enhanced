@@ -186,7 +186,7 @@ public final class PageFetcher {
 						if (newdocid > 0) {
 							return PageFetchStatus.RedirectedPageIsSeen;
 						}
-						WebURL webURL = new WebURL();
+						WebURL webURL = new WebURL(page.getWebURL());
 						webURL.setURL(uri);
 						webURL.setDocid(DocIDServer.getNewDocID(uri));
 						page.setWebURL(webURL);
