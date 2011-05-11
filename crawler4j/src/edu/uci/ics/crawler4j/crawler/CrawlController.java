@@ -22,6 +22,7 @@ import java.io.File;
 import java.lang.Thread.State;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Callable;
 
 import org.apache.log4j.Logger;
 
@@ -82,15 +83,27 @@ public final class CrawlController {
 
 		PageFetcher.startConnectionMonitorThread();
 	}
+	
+	public <T extends WebCrawler> void start(final Class<T> _c, int numberOfCrawlers) throws Exception {
+		start(new Callable<WebCrawler>() {
+			public WebCrawler call() {
+				try {
+					return _c.newInstance();
+				} catch (Exception e) {
+					return null;
+				}
+			}
+		}, numberOfCrawlers);
+	}
 
-	public <T extends WebCrawler> void start(Class<T> _c, int numberOfCrawlers) {
+	public void start(Callable<WebCrawler> crawlerFactory, int numberOfCrawlers) throws Exception {
 		try {
 			crawlersLocalData.clear();
 			threads = new ArrayList<Thread>();
-			List<T> crawlers = new ArrayList<T>();
+			List<WebCrawler> crawlers = new ArrayList<WebCrawler>();
 			frontier.setThreads(numberOfCrawlers);
 			for (int i = 1; i <= numberOfCrawlers; i++) {
-				T crawler = _c.newInstance();
+				WebCrawler crawler = crawlerFactory.call();
 				Thread thread = new Thread(crawler, "Crawler " + i);
 				crawler.setThread(thread);
 				crawler.setMyId(i);
@@ -100,7 +113,7 @@ public final class CrawlController {
 				threads.add(thread);
 				logger.info("Crawler " + i + " started.");
 			}
-			for (T c : crawlers) {
+			for (WebCrawler c : crawlers) {
 				c.getThread().join();
 				crawlersLocalData.add(c.getMyLocalData());
 				logger.info("Crawler " + c.getMyId() + " ended.");
