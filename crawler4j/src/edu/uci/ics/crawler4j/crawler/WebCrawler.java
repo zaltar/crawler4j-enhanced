@@ -89,8 +89,8 @@ public class WebCrawler implements Runnable {
 		onStart();
 		while (true) {
 			List<WebURL> assignedURLs = new ArrayList<WebURL>(50);
-			Frontier.getNextURLs(50, assignedURLs);
-			if (Frontier.isFinished()) {
+			myController.getFrontier().getNextURLs(50, assignedURLs);
+			if (myController.getFrontier().isFinished()) {
 				onBeforeExit();
 				return;
 			}
@@ -98,7 +98,7 @@ public class WebCrawler implements Runnable {
 			for (WebURL curURL : assignedURLs) {
 				if (curURL != null) {
 					processPage(curURL);
-					Frontier.setProcessed(curURL);
+					myController.getFrontier().setProcessed(curURL);
 				}
 			}
 		}
@@ -137,7 +137,7 @@ public class WebCrawler implements Runnable {
 						webURL.setDocid(-1);
 						if (shouldVisit(webURL) && RobotstxtServer.allows(webURL)) {
 							webURL.setDocid(DocIDServer.getNewDocID(movedToUrl));	
-							Frontier.schedule(webURL);
+							myController.getFrontier().schedule(webURL);
 						}
 					}
 				}
@@ -194,7 +194,7 @@ public class WebCrawler implements Runnable {
 						}
 					}
 				}
-				Frontier.scheduleAll(toSchedule);
+				myController.getFrontier().scheduleAll(toSchedule);
 				page.setURLs(toList);
 			}
 			visit(page);

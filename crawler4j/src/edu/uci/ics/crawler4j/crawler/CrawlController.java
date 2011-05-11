@@ -43,6 +43,7 @@ public final class CrawlController {
 
 	private static final Logger logger = Logger.getLogger(CrawlController.class.getName());
 
+	private Frontier frontier;
 	private Environment env;
 	private List<Object> crawlersLocalData = new ArrayList<Object>();
 
@@ -76,7 +77,7 @@ public final class CrawlController {
 		}
 
 		env = new Environment(envHome, envConfig);
-		Frontier.init(env, resumable);
+		frontier = new Frontier(env, resumable);
 		DocIDServer.init(env, resumable);
 
 		PageFetcher.startConnectionMonitorThread();
@@ -87,7 +88,7 @@ public final class CrawlController {
 			crawlersLocalData.clear();
 			threads = new ArrayList<Thread>();
 			List<T> crawlers = new ArrayList<T>();
-			Frontier.setThreads(numberOfCrawlers);
+			frontier.setThreads(numberOfCrawlers);
 			for (int i = 1; i <= numberOfCrawlers; i++) {
 				T crawler = _c.newInstance();
 				Thread thread = new Thread(crawler, "Crawler " + i);
@@ -131,7 +132,7 @@ public final class CrawlController {
 		if (!RobotstxtServer.allows(webUrl)) {
 			logger.info("Robots.txt does not allow this seed: " + pageUrl);
 		} else {
-			Frontier.schedule(webUrl);
+			frontier.schedule(webUrl);
 		}
 	}
 
@@ -156,7 +157,7 @@ public final class CrawlController {
 	}
 
 	public void setMaximumPagesToFetch(int max) {
-		Frontier.setMaximumPagesToFetch(max);
+		frontier.setMaximumPagesToFetch(max);
 	}
 
 	public void setProxy(String proxyHost, int proxyPort) {
@@ -165,5 +166,9 @@ public final class CrawlController {
 
 	public static void setProxy(String proxyHost, int proxyPort, String username, String password) {
 		PageFetcher.setProxy(proxyHost, proxyPort, username, password);
+	}
+	
+	public Frontier getFrontier() {
+		return frontier;
 	}
 }

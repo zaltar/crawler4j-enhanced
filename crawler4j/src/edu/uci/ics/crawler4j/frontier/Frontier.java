@@ -35,24 +35,24 @@ import edu.uci.ics.crawler4j.url.WebURL;
 
 public final class Frontier {
 
-	private static final Logger logger = Logger.getLogger(Frontier.class.getName());
+	private final Logger logger = Logger.getLogger(Frontier.class.getName());
 
-	private static WorkQueues workQueues;
-	private static InProcessPagesDB inprocessPages;
+	private WorkQueues workQueues;
+	private InProcessPagesDB inprocessPages;
 
-	private static Object waitingList = Frontier.class.toString() + "_WaitingList";
+	private Object waitingList = Frontier.class.toString() + "_WaitingList";
 
-	private static volatile boolean isFinished = false;
+	private volatile boolean isFinished = false;
 
-	private static int maxPagesToFetch = Configurations.getIntProperty("crawler.max_pages_to_fetch", -1);
+	private int maxPagesToFetch = Configurations.getIntProperty("crawler.max_pages_to_fetch", -1);
 
-	private static AtomicInteger scheduledPages = new AtomicInteger();
+	private AtomicInteger scheduledPages = new AtomicInteger();
 	
-	private static int threads;
+	private int threads;
 	
-	private static int waitingThreads;
+	private int waitingThreads;
 
-	public static void init(Environment env, boolean resumable) {
+	public Frontier(Environment env, boolean resumable) {
 		try {
 			workQueues = new WorkQueues(env, "PendingURLsDB", resumable);
 			if (resumable) {
@@ -75,10 +75,11 @@ public final class Frontier {
 		} catch (DatabaseException e) {
 			logger.error("Error while initializing the Frontier: " + e.getMessage());
 			workQueues = null;
+			throw e;
 		}
 	}
 
-	public static void scheduleAll(List<WebURL> urls) {
+	public void scheduleAll(List<WebURL> urls) {
 			Iterator<WebURL> it = urls.iterator();
 			while (it.hasNext()) {
 				WebURL url = it.next();
@@ -96,21 +97,21 @@ public final class Frontier {
 			}
 	}
 
-	public static void schedule(WebURL url) {
-			try {
-				if (maxPagesToFetch < 0 || scheduledPages.get() < maxPagesToFetch) {
-					workQueues.put(url);
-					scheduledPages.incrementAndGet();
-				}
-			} catch (DatabaseException e) {
-				logger.error("Error while puting the url in the work queue.");
+	public void schedule(WebURL url) {
+		try {
+			if (maxPagesToFetch < 0 || scheduledPages.get() < maxPagesToFetch) {
+				workQueues.put(url);
+				scheduledPages.incrementAndGet();
 			}
-			synchronized (waitingList) {
-				waitingList.notify();
-			}
+		} catch (DatabaseException e) {
+			logger.error("Error while puting the url in the work queue.");
+		}
+		synchronized (waitingList) {
+			waitingList.notify();
+		}
 	}
 
-	public static void getNextURLs(int max, List<WebURL> result) {
+	public void getNextURLs(int max, List<WebURL> result) {
 		while (!isFinished) {
 			try {
 				List<WebURL> curResults = workQueues.get(max);
@@ -132,7 +133,7 @@ public final class Frontier {
 				waitingThreads++;
 				if (waitingThreads == threads) {
 					//We are all done!
-					Frontier.finish();
+					this.finish();
 					return;
 				}
 				try {
@@ -145,7 +146,7 @@ public final class Frontier {
 		}
 	}
 	
-	public static void setProcessed(WebURL webURL) {
+	public void setProcessed(WebURL webURL) {
 		if (inprocessPages != null) {
 			if (!inprocessPages.removeURL(webURL)) {
 				logger.warn("Could not remove: " + webURL.getURL() + " from list of processed pages.");
@@ -153,45 +154,45 @@ public final class Frontier {
 		}
 	}
 
-	public static long getQueueLength() {
+	public long getQueueLength() {
 		return workQueues.getLength();
 	}
 
-	public static long getNumberOfAssignedPages() {
+	public long getNumberOfAssignedPages() {
 		return inprocessPages.getLength();
 	}
 	
-	public static void sync() {
+	public void sync() {
 		workQueues.sync();
 		DocIDServer.sync();
 	}
 
-	public static boolean isFinished() {
+	public boolean isFinished() {
 		return isFinished;
 	}
 	
-	public static void setMaximumPagesToFetch(int max) {
+	public void setMaximumPagesToFetch(int max) {
 		maxPagesToFetch = max;
 	}
 
-	public static void close() {
+	public void close() {
 		sync();
 		workQueues.close();
 		DocIDServer.close();
 	}
 
-	public static void finish() {
+	public void finish() {
 		isFinished = true;
 		synchronized (waitingList) {
 			waitingList.notifyAll();
 		}
 	}
 
-	public static void setThreads(int threads) {
-		Frontier.threads = threads;
+	public void setThreads(int threads) {
+		this.threads = threads;
 	}
 
-	public static int getThreads() {
+	public int getThreads() {
 		return threads;
 	}
 }
