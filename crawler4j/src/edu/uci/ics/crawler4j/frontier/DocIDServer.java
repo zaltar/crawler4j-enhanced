@@ -67,7 +67,7 @@ public final class DocIDServer {
 			OperationStatus result = null;
 			DatabaseEntry value = new DatabaseEntry();
 			try {
-				DatabaseEntry key = new DatabaseEntry(url.getBytes());
+				DatabaseEntry key = new DatabaseEntry(url.getBytes("UTF-8"));
 				result = docIDsDB.get(null, key, value, null);
 
 				if (result == OperationStatus.SUCCESS && value.getData().length > 0) {
@@ -90,7 +90,7 @@ public final class DocIDServer {
 				}
 
 				lastDocID++;
-				docIDsDB.put(null, new DatabaseEntry(url.getBytes()), new DatabaseEntry(Util.int2ByteArray(lastDocID)));
+				docIDsDB.put(null, new DatabaseEntry(url.getBytes("UTF-8")), new DatabaseEntry(Util.int2ByteArray(lastDocID)));
 				return lastDocID;
 			} catch (Exception e) {
 				e.printStackTrace();
