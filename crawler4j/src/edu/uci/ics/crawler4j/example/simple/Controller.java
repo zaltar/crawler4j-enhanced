@@ -17,7 +17,11 @@
 
 package edu.uci.ics.crawler4j.example.simple;
 
-import edu.uci.ics.crawler4j.crawler.CrawlController;
+import org.apache.log4j.BasicConfigurator;
+
+import edu.uci.ics.crawler4j.crawler.CrawlBuilder;
+import edu.uci.ics.crawler4j.crawler.CrawlerController;
+import edu.uci.ics.crawler4j.crawler.configuration.SettingsBuilder;
 
 /**
  * @author Yasser Ganjisaffar <yganjisa at uci dot edu>
@@ -30,6 +34,8 @@ public class Controller {
 				System.out.println("Please specify 'root folder' and 'number of crawlers'.");
 				return;
 			}
+			
+			BasicConfigurator.configure();
 			
 			/*
 			 * rootfolder is a folder where intermediate crawl data is
@@ -53,7 +59,20 @@ public class Controller {
 			 * Note: if you enable resuming feature and want to start a fresh
 			 * crawl, you need to delete the contents of rootFolder manually.
 			 */
-			CrawlController controller = new CrawlController(rootFolder);
+			MyCrawler myCrawler = new MyCrawler();
+			CrawlerController controller = 
+				new CrawlBuilder()
+				.setSettings(new SettingsBuilder()
+					.setStorageFolder(rootFolder)
+					.setEnableResume(false)
+					.setMaxDepth((short)2)
+					.setPolitenessDelay(200)
+					.setMaxPagesToFetch(500)
+					.setNumberOfCrawlerThreads(numberOfCrawlers))
+				.setPageVisitedCallback(myCrawler)
+				.setPageVisitValidator(myCrawler)
+				.build();
+			//	new CrawlController(rootFolder);
 			
 			/*
 			 * For each crawl, you need to add some seed urls.
@@ -65,46 +84,48 @@ public class Controller {
 			controller.addSeed("http://www.ics.uci.edu/~lopes/");
 			controller.addSeed("http://www.ics.uci.edu/");
 			
+			controller.run();
 			/*
 			 * Be polite:
 			 * Make sure that we don't send more than 5 requests per 
 			 * second (200 milliseconds between requests).
-			 */
+			 *
 			controller.setPolitenessDelay(200);
 			
-			/*
+			*
 			 * Optional:
 			 * You can set the maximum crawl depth here.
 			 * The default value is -1 for unlimited depth
-			 */
+			 *
 			controller.setMaximumCrawlDepth(2);
 			
-			/*
+			*
 			 * Optional:
 			 * You can set the maximum number of pages to crawl.
 			 * The default value is -1 for unlimited depth
-			 */
+			 *
 			controller.setMaximumPagesToFetch(500);
 			
-			/*
+			*
 			 * Do you need to set a proxy?
 			 * If so, you can use: 
 			 * controller.setProxy("proxyserver.example.com", 8080);
 			 * OR
 			 * controller.setProxy("proxyserver.example.com", 8080, username, password);
-			 */
+			 *
 			
-			/*
+			*
 			 * Note: you can configure several other parameters by modifying 
 			 * crawler4j.properties file
-			 */
+			 *
 			
-			/*
+			*
 			 * Start the crawl. This is a blocking operation, meaning
 			 * that your code will reach the line after this only when
 			 * crawling is finished.
-			 */
+			 *
 			controller.start(MyCrawler.class, numberOfCrawlers);
+			*/
 		}
 
 }

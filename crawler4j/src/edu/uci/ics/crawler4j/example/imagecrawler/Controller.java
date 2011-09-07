@@ -17,7 +17,9 @@
 
 package edu.uci.ics.crawler4j.example.imagecrawler;
 
-import edu.uci.ics.crawler4j.crawler.CrawlController;
+import edu.uci.ics.crawler4j.crawler.CrawlBuilder;
+import edu.uci.ics.crawler4j.crawler.CrawlerController;
+import edu.uci.ics.crawler4j.crawler.configuration.SettingsBuilder;
 
 /**
  * @author Yasser Ganjisaffar <yganjisa at uci dot edu>
@@ -44,15 +46,23 @@ public class Controller {
 
 		String[] crawlDomains = new String[] { "http://uci.edu/" };
 
-		CrawlController controller = new CrawlController(rootFolder);
+		MyImageCrawler myImageCrawler = new MyImageCrawler(crawlDomains, storageFolder);
+		
+		CrawlerController controller = new CrawlBuilder()
+			.setSettings(new SettingsBuilder()
+				.setStorageFolder(rootFolder)
+				// Be polite:
+				// Make sure that we don't send more than 5 requests per second (200
+				// milliseconds between requests).0
+				.setPolitenessDelay((short)200)
+				.setNumberOfCrawlerThreads(numberOfCrawlers))
+			.setPageVisitedCallback(myImageCrawler)
+			.setPageVisitValidator(myImageCrawler)
+			.build();
+
 		for (String domain : crawlDomains) {
 			controller.addSeed(domain);
 		}
-
-		// Be polite:
-		// Make sure that we don't send more than 5 requests per second (200
-		// milliseconds between requests).0
-		controller.setPolitenessDelay(200);
 
 		// Do you need to set a proxy?
 		// If so, you can uncomment the following line
@@ -61,9 +71,7 @@ public class Controller {
 		// controller.setProxy("proxyserver.example.com", 8080, username,
 		// password);
 
-		MyImageCrawler.configure(crawlDomains, storageFolder);
-
-		controller.start(MyImageCrawler.class, numberOfCrawlers);
+		controller.run();
 	}
 
 }

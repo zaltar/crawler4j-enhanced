@@ -22,11 +22,11 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
-
-import edu.uci.ics.crawler4j.crawler.Configurations;
 import edu.uci.ics.crawler4j.crawler.Page;
-import edu.uci.ics.crawler4j.crawler.PageFetchStatus;
-import edu.uci.ics.crawler4j.crawler.PageFetcher;
+import edu.uci.ics.crawler4j.crawler.configuration.ICrawlerSettings;
+import edu.uci.ics.crawler4j.crawler.configuration.SettingsFromPropertiesBuilder;
+import edu.uci.ics.crawler4j.crawler.fetcher.IPageFetcher;
+import edu.uci.ics.crawler4j.crawler.fetcher.PageFetchStatus;
 import edu.uci.ics.crawler4j.url.WebURL;
 
 /**
@@ -36,14 +36,23 @@ import edu.uci.ics.crawler4j.url.WebURL;
 
 public class RobotstxtServer {
 	
-	private static Map<String, HostDirectives> host2directives = new HashMap<String, HostDirectives>();
+	private Map<String, HostDirectives> host2directives = new HashMap<String, HostDirectives>();
 	
-	private static final String USER_AGENT_NAME = Configurations.getStringProperty("fetcher.user_agent_name", "crawler4j");
-	private static final int MAX_MAP_SIZE = Configurations.getIntProperty("crawler.robotstxt.max_map_size", 100);
-	private static boolean active = Configurations.getBooleanProperty("crawler.obey_robotstxt", false);
-	private static final Object mutex = RobotstxtServer.class.toString() + "_MUTEX"; 
+	private final String userAgentName;
+	private final int maxMapSize;
+	private final Object mutex = RobotstxtServer.class.toString() + "_MUTEX"; 
 	
-	public static boolean allows(WebURL webURL) {
+	private boolean active;
+	private IPageFetcher pageFetcher;
+	
+	public RobotstxtServer(ICrawlerSettings config) {
+		userAgentName = config.getUserAgent();
+		maxMapSize = config.getRobotstxtMapSize();
+		active = config.getObeyRobotstxt();
+		pageFetcher = config.getPageFetcher();
+	}
+	
+	public boolean allows(WebURL webURL) {
 		if (!active) {
 			return true;
 		}
@@ -63,25 +72,21 @@ public class RobotstxtServer {
 		return true;
 	}
 	
-	public static void setActive(boolean active) {
-		RobotstxtServer.active = active;
-	}
-	
-	private static HostDirectives fetchDirectives(String host) {
+	private HostDirectives fetchDirectives(String host) {
 		WebURL robotsTxt = new WebURL();
 		robotsTxt.setURL("http://" + host + "/robots.txt");
 		Page page = new Page(robotsTxt);
-		int statusCode = PageFetcher.fetch(page, true);
+		int statusCode = pageFetcher.fetch(page);
 		HostDirectives directives = null;
-		if (statusCode == PageFetchStatus.OK) {
-			directives = RobotstxtParser.parse(page.getHTML(), USER_AGENT_NAME);			
+		if (statusCode == PageFetchStatus.OK && !page.isBinary()) {
+			directives = RobotstxtParser.parse(page.getHTML(), userAgentName);			
 		}
 		if (directives == null) {
 			// We still need to have this object to keep track of the time we fetched it
 			directives = new HostDirectives();
 		}
 		synchronized (mutex) {
-			if (host2directives.size() == MAX_MAP_SIZE) {
+			if (host2directives.size() == maxMapSize) {
 				String minHost = null;
 				long minAccessTime = Long.MAX_VALUE;
 				for (Entry<String, HostDirectives> entry : host2directives.entrySet()) {
@@ -96,5 +101,4 @@ public class RobotstxtServer {
 		}
 		return directives;
 	}
-
 }

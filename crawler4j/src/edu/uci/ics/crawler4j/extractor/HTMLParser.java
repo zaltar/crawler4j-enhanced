@@ -15,53 +15,52 @@
  * limitations under the License.
  */
 
-package edu.uci.ics.crawler4j.crawler;
+package edu.uci.ics.crawler4j.extractor;
 
 import it.unimi.dsi.parser.BulletParser;
 import it.unimi.dsi.parser.callback.TextExtractor;
-
 import java.net.URL;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
 
+import edu.uci.ics.crawler4j.crawler.Page;
+import edu.uci.ics.crawler4j.crawler.configuration.ICrawlerSettings;
 import edu.uci.ics.crawler4j.url.URLCanonicalizer;
 
 /**
  * @author Yasser Ganjisaffar <yganjisa at uci dot edu>
  */
 
-public class HTMLParser {
-
-	private String text;
-	private String title;
-
+public class HTMLParser implements IPageParser {
 	private BulletParser bulletParser;
 	private TextExtractor textExtractor;
-	private LinkExtractor linkExtractor;
+	private HTMLLinkExtractor linkExtractor;
 
-	private static final int MAX_OUT_LINKS = Configurations.getIntProperty(
-			"fetcher.max_outlinks", 5000);
+	private final int maxOutLinks;
 
 	private Set<String> urls;
 
-	public HTMLParser() {
+	public HTMLParser(ICrawlerSettings config) {
 		bulletParser = new BulletParser();
 		textExtractor = new TextExtractor();
-		linkExtractor = new LinkExtractor();
+		linkExtractor = new HTMLLinkExtractor();
 		
-		linkExtractor.setIncludeImagesSources(Configurations
-				.getBooleanProperty("crawler.include_images", false));
+		maxOutLinks = config.getMaxOutlinks();
+		linkExtractor.setIncludeImagesSources(config.getIncludeImages());
 	}
 
-	public void parse(String htmlContent, String contextURL) {
+	@Override
+	public void parse(Page page) {
 		urls = new HashSet<String>();
+		String htmlContent = page.getHTML();
+		String contextURL = page.getWebURL().getURL();
 		char[] chars = htmlContent.toCharArray();
 
 		bulletParser.setCallback(textExtractor);
 		bulletParser.parse(chars);
-		text = textExtractor.text.toString().trim();
-		title = textExtractor.title.toString().trim();
+		page.setText(textExtractor.text.toString().trim());
+		page.setTitle(textExtractor.title.toString().trim());
 
 		bulletParser.setCallback(linkExtractor);
 		bulletParser.parse(chars);
@@ -79,7 +78,7 @@ public class HTMLParser {
 		
 		while (it.hasNext()) {
 			urlCount += handleLink(it.next(), contextURL);
-			if (urlCount > MAX_OUT_LINKS) {
+			if (urlCount > maxOutLinks) {
 				break;
 			}
 		}
@@ -103,14 +102,7 @@ public class HTMLParser {
 		return 0;
 	}
 
-	public String getText() {
-		return text;
-	}
-
-	public String getTitle() {
-		return title;
-	}
-
+	@Override
 	public Set<String> getLinks() {
 		return urls;
 	}

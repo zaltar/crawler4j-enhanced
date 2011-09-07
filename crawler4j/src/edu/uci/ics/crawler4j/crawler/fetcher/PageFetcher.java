@@ -15,11 +15,14 @@
  * limitations under the License.
  */
 
-package edu.uci.ics.crawler4j.crawler;
+package edu.uci.ics.crawler4j.crawler.fetcher;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.BufferOverflowException;
+import java.nio.ByteBuffer;
+import java.nio.charset.Charset;
 import java.util.Date;
-
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
@@ -44,7 +47,13 @@ import org.apache.http.params.HttpProtocolParamBean;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
+import edu.uci.ics.crawler4j.crawler.IdleConnectionMonitorThread;
+import edu.uci.ics.crawler4j.crawler.Page;
+import edu.uci.ics.crawler4j.crawler.configuration.ICrawlerSettings;
+import edu.uci.ics.crawler4j.crawler.configuration.SettingsFromPropertiesBuilder;
+import edu.uci.ics.crawler4j.frontier.DocID;
 import edu.uci.ics.crawler4j.frontier.DocIDServer;
+import edu.uci.ics.crawler4j.frontier.IDocIDServer;
 import edu.uci.ics.crawler4j.url.URLCanonicalizer;
 import edu.uci.ics.crawler4j.url.WebURL;
 
@@ -52,63 +61,60 @@ import edu.uci.ics.crawler4j.url.WebURL;
  * @author Yasser Ganjisaffar <yganjisa at uci dot edu>
  */
 
-public final class PageFetcher {
-
+public final class PageFetcher implements IPageFetcher {
 	private static final Logger logger = Logger.getLogger(PageFetcher.class);
 
-	private static ThreadSafeClientConnManager connectionManager;
+	private IDocIDServer docIDServer;
+	
+	private ThreadSafeClientConnManager connectionManager;
 
-	private static DefaultHttpClient httpclient;
+	private DefaultHttpClient httpclient;
 
-	private static Object mutex = PageFetcher.class.toString() + "_MUTEX";
+	private Object mutex = PageFetcher.class.toString() + "_MUTEX";
 
-	private static int processedCount = 0;
-	private static long startOfPeriod = 0;
-	private static long lastFetchTime = 0;
+	private int processedCount = 0;
+	private long startOfPeriod = 0;
+	private long lastFetchTime = 0;
 
-	private static long politenessDelay = Configurations.getIntProperty("fetcher.default_politeness_delay", 200);
+	private final long politenessDelay;
+	private final int maxDownloadSize;
+	private final boolean show404Pages;
+	private final boolean ignoreBinary;
 
-	public static final int MAX_DOWNLOAD_SIZE = Configurations.getIntProperty("fetcher.max_download_size", 1048576);
+	private IdleConnectionMonitorThread connectionMonitorThread = null;
 
-	private static final boolean show404Pages = Configurations.getBooleanProperty("logging.show_404_pages", true);
-
-	private static IdleConnectionMonitorThread connectionMonitorThread = null;
-
-	public static long getPolitenessDelay() {
-		return politenessDelay;
-	}
-
-	public static void setPolitenessDelay(long politenessDelay) {
-		PageFetcher.politenessDelay = politenessDelay;
-	}
-
-	static {
+	public PageFetcher(ICrawlerSettings config) {
+		politenessDelay = config.getPolitenessDelay();
+		maxDownloadSize = config.getMaxDownloadSize();
+		show404Pages = config.getShow404Pages();
+		ignoreBinary = !config.getIncludeBinaryContent();
+		docIDServer = config.getCrawlState().getDocIDServer();
+		
 		HttpParams params = new BasicHttpParams();
 		HttpProtocolParamBean paramsBean = new HttpProtocolParamBean(params);
 		paramsBean.setVersion(HttpVersion.HTTP_1_1);
 		paramsBean.setContentCharset("UTF-8");
 		paramsBean.setUseExpectContinue(false);
 
-		params.setParameter("http.useragent", Configurations.getStringProperty("fetcher.user_agent",
-				"crawler4j (http://code.google.com/p/crawler4j/)"));
+		params.setParameter("http.useragent", config.getUserAgent());
 
-		params.setIntParameter("http.socket.timeout", Configurations.getIntProperty("fetcher.socket_timeout", 20000));
+		params.setIntParameter("http.socket.timeout",config.getSocketTimeout());
 
 		params.setIntParameter("http.connection.timeout",
-				Configurations.getIntProperty("fetcher.connection_timeout", 30000));
+				config.getConnectionTimeout());
 
 		params.setBooleanParameter("http.protocol.handle-redirects", false);
 
 		ConnPerRouteBean connPerRouteBean = new ConnPerRouteBean();
-		connPerRouteBean.setDefaultMaxPerRoute(Configurations.getIntProperty("fetcher.max_connections_per_host", 100));
+		connPerRouteBean.setDefaultMaxPerRoute(config.getMaxConnectionsPerHost());
 		ConnManagerParams.setMaxConnectionsPerRoute(params, connPerRouteBean);
 		ConnManagerParams.setMaxTotalConnections(params,
-				Configurations.getIntProperty("fetcher.max_total_connections", 100));
+				config.getMaxTotalConnections());
 
 		SchemeRegistry schemeRegistry = new SchemeRegistry();
 		schemeRegistry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
 
-		if (Configurations.getBooleanProperty("fetcher.crawl_https", false)) {
+		if (config.getAllowHttps()) {
 			schemeRegistry.register(new Scheme("https", SSLSocketFactory.getSocketFactory(), 443));
 		}
 
@@ -117,21 +123,22 @@ public final class PageFetcher {
 		httpclient = new DefaultHttpClient(connectionManager, params);
 	}
 
-	public synchronized static void startConnectionMonitorThread() {
+	public synchronized void startConnectionMonitorThread() {
 		if (connectionMonitorThread == null) {
 			connectionMonitorThread = new IdleConnectionMonitorThread(connectionManager);
 		}
 		connectionMonitorThread.start();
 	}
 
-	public synchronized static void stopConnectionMonitorThread() {
+	public synchronized void stopConnectionMonitorThread() {
 		if (connectionMonitorThread != null) {
 			connectionManager.shutdown();
 			connectionMonitorThread.shutdown();
 		}
 	}
 
-	public static int fetch(Page page, boolean ignoreIfBinary) {
+	@Override
+	public int fetch(Page page) {
 		String toFetchURL = page.getWebURL().getURL();
 		HttpGet get = null;
 		HttpEntity entity = null;
@@ -181,16 +188,15 @@ public final class PageFetcher {
 			String uri = get.getURI().toString();
 			if (!uri.equals(toFetchURL)) {
 				if (!URLCanonicalizer.getCanonicalURL(uri).equals(toFetchURL)) {
-					int newdocid = DocIDServer.getDocID(uri);
-					if (newdocid != -1) {
-						if (newdocid > 0) {
-							return PageFetchStatus.RedirectedPageIsSeen;
-						}
-						WebURL webURL = new WebURL(page.getWebURL());
-						webURL.setURL(uri);
-						webURL.setDocid(DocIDServer.getNewDocID(uri));
-						page.setWebURL(webURL);
+					DocID newdocid = docIDServer.getNewOrExistingDocID(uri);
+					
+					if (!newdocid.isNew()) {
+						return PageFetchStatus.RedirectedPageIsSeen;
 					}
+					WebURL webURL = new WebURL(page.getWebURL());
+					webURL.setURL(uri);
+					webURL.setDocid(newdocid.getId());
+					page.setWebURL(webURL);
 				}
 			}
 
@@ -206,26 +212,40 @@ public final class PageFetcher {
 					} else {
 						size = -1;
 					}
+					
+					if (size >= 0)
+						logger.debug("getContentLength failed but header exists!?");
 				}
-				if (size > MAX_DOWNLOAD_SIZE) {
+				if (size > maxDownloadSize) {
 					entity.consumeContent();
 					return PageFetchStatus.PageTooBig;
 				}
 
 				boolean isBinary = false;
-
+				String charset = "UTF-8";
 				Header type = entity.getContentType();
 				if (type != null) {
-					String typeStr = type.getValue().toLowerCase();
-					if (typeStr.contains("image") || typeStr.contains("audio") || typeStr.contains("video")) {
+					int semicolonPos = type.getValue().indexOf(';');
+					String typeStr;
+					if (semicolonPos > 0) {
+						typeStr = type.getValue().toLowerCase().substring(0, semicolonPos);
+					} else {
+						typeStr = type.getValue().toLowerCase();
+					}
+					page.setContentType(typeStr);
+					
+					if (!typeStr.startsWith("text/")) {
 						isBinary = true;
-						if (ignoreIfBinary) {
+						if (ignoreBinary) {
 							return PageFetchStatus.PageIsBinary;
 						}
 					}
+					if (!isBinary && typeStr.contains("charset=")) {
+						charset = type.getValue().substring(typeStr.indexOf("charset=") + 8);
+					}
 				}
 
-				if (page.load(entity.getContent(), (int) size, isBinary)) {
+				if (loadPage(page, entity.getContent(), (int) size, isBinary, charset)) {
 					return PageFetchStatus.OK;
 				} else {
 					return PageFetchStatus.PageLoadError;
@@ -259,13 +279,56 @@ public final class PageFetcher {
 		}
 		return PageFetchStatus.UnknownError;
 	}
+	
+	private boolean loadPage(final Page p, final InputStream in, 
+			final int totalsize, final boolean isBinary, final String encoding) {
+		ByteBuffer bBuf;
+		
+		if (totalsize > 0) {
+			bBuf = ByteBuffer.allocate(totalsize + 1024);
+		} else {
+			bBuf = ByteBuffer.allocate(maxDownloadSize);
+		}
+		final byte[] b = new byte[1024];
+		int len;
+		double finished = 0;
+		try {
+			while ((len = in.read(b)) != -1) {
+				if (finished + b.length > bBuf.capacity()) {
+					break;
+				}
+				bBuf.put(b, 0, len);
+				finished += len;
+			}
+		} catch (final BufferOverflowException boe) {
+			System.out.println("Page size exceeds maximum allowed.");
+			return false;
+		} catch (final Exception e) {
+			System.err.println(e.getMessage());
+			return false;
+		}
 
-	public static void setProxy(String proxyHost, int proxyPort) {
+		bBuf.flip();
+		if (isBinary) {
+			byte[] tmp = new byte[bBuf.limit()];
+			bBuf.get(tmp);
+			p.setBinaryData(tmp);
+		} else {
+			String html = Charset.forName(encoding).decode(bBuf).toString();
+			if (html.length() == 0) {
+				return false;
+			}
+			p.setHTML(html);
+		}
+		return true;
+	}
+
+	public void setProxy(String proxyHost, int proxyPort) {
 		HttpHost proxy = new HttpHost(proxyHost, proxyPort);
 		httpclient.getParams().setParameter(ConnRoutePNames.DEFAULT_PROXY, proxy);
 	}
 
-	public static void setProxy(String proxyHost, int proxyPort, String username, String password) {
+	public void setProxy(String proxyHost, int proxyPort, String username, String password) {
 		httpclient.getCredentialsProvider().setCredentials(new AuthScope(proxyHost, proxyPort),
 				new UsernamePasswordCredentials(username, password));
 		setProxy(proxyHost, proxyPort);

@@ -17,12 +17,7 @@
 
 package edu.uci.ics.crawler4j.crawler;
 
-import java.io.InputStream;
-import java.nio.BufferOverflowException;
-import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
 import java.util.List;
-
 import edu.uci.ics.crawler4j.url.WebURL;
 
 /**
@@ -40,6 +35,8 @@ public class Page {
 	// Data for textual content
 	private String text;
 	private String title;
+	
+	private String contentType;
 
 	// binary data (e.g, image content)
 	// It's null for html pages
@@ -47,58 +44,16 @@ public class Page {
 
 	private List<WebURL> urls;
 
-	private ByteBuffer bBuf;
-
-	private final static String defaultEncoding = Configurations
-			.getStringProperty("crawler.default_encoding", "UTF-8");
-
-	public boolean load(final InputStream in, final int totalsize,
-			final boolean isBinary) {
-		if (totalsize > 0) {
-			this.bBuf = ByteBuffer.allocate(totalsize + 1024);
-		} else {
-			this.bBuf = ByteBuffer.allocate(PageFetcher.MAX_DOWNLOAD_SIZE);
-		}
-		final byte[] b = new byte[1024];
-		int len;
-		double finished = 0;
-		try {
-			while ((len = in.read(b)) != -1) {
-				if (finished + b.length > this.bBuf.capacity()) {
-					break;
-				}
-				this.bBuf.put(b, 0, len);
-				finished += len;
-			}
-		} catch (final BufferOverflowException boe) {
-			System.out.println("Page size exceeds maximum allowed.");
-			return false;
-		} catch (final Exception e) {
-			System.err.println(e.getMessage());
-			return false;
-		}
-
-		this.bBuf.flip();
-		if (isBinary) {
-			binaryData = new byte[bBuf.limit()];
-			bBuf.get(binaryData);
-		} else {
-			this.html = "";
-			this.html += Charset.forName(defaultEncoding).decode(this.bBuf);
-			this.bBuf.clear();
-			if (this.html.length() == 0) {
-				return false;
-			}
-		}
-		return true;
-	}
-
 	public Page(WebURL url) {
 		this.url = new WebURL(url);
 	}
 
 	public String getHTML() {
 		return this.html;
+	}
+	
+	public void setHTML(String html) {
+		this.html = html;
 	}
 
 	public String getText() {
@@ -141,6 +96,10 @@ public class Page {
 	public byte[] getBinaryData() {
 		return binaryData;
 	}
+	
+	public void setBinaryData(byte[] data) {
+		binaryData = data;
+	}
 
 	public void setRedirectedURL(String redirectedURL) {
 		this.redirectedURL = redirectedURL;
@@ -148,6 +107,14 @@ public class Page {
 
 	public String getRedirectedURL() {
 		return redirectedURL;
+	}
+
+	public void setContentType(String contentType) {
+		this.contentType = contentType;
+	}
+
+	public String getContentType() {
+		return contentType;
 	}
 
 }

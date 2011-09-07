@@ -17,9 +17,10 @@
 
 package edu.uci.ics.crawler4j.example.advanced;
 
-import java.util.List;
-
-import edu.uci.ics.crawler4j.crawler.CrawlController;
+import edu.uci.ics.crawler4j.crawler.CrawlBuilder;
+import edu.uci.ics.crawler4j.crawler.CrawlerController;
+import edu.uci.ics.crawler4j.crawler.ICrawlComplete;
+import edu.uci.ics.crawler4j.crawler.configuration.SettingsBuilder;
 
 public class Controller {
 	
@@ -36,24 +37,26 @@ public class Controller {
 			String rootFolder = args[0];
 			int numberOfCrawlers = Integer.parseInt(args[1]);
 			
-			CrawlController controller = new CrawlController(rootFolder);		
-			controller.addSeed("http://www.ics.uci.edu/");
-			controller.start(MyCrawler.class, numberOfCrawlers);	
+			final MyCrawler myCrawler = new MyCrawler();
 			
-			List<Object> crawlersLocalData = controller.getCrawlersLocalData();
-			long totalLinks = 0;
-			long totalTextSize = 0;
-			int totalProcessedPages = 0;
-			for (Object localData : crawlersLocalData) {
-				CrawlStat stat = (CrawlStat) localData;
-				totalLinks += stat.getTotalLinks();
-				totalTextSize += stat.getTotalTextSize();
-				totalProcessedPages += stat.getTotalProcessedPages();
-			}
-			System.out.println("Aggregated Statistics:");
-			System.out.println("   Processed Pages: " + totalProcessedPages);
-			System.out.println("   Total Links found: " + totalLinks);
-			System.out.println("   Total Text Size: " + totalTextSize);
+			CrawlerController controller = new CrawlBuilder()
+				.setSettings(new SettingsBuilder()
+					.setStorageFolder(rootFolder)
+					.setNumberOfCrawlerThreads(numberOfCrawlers))
+				.setPageVisitedCallback(null)
+				.setPageVisitValidator(null)
+				.build();
+			
+			controller.addSeed("http://www.ics.uci.edu/");
+			controller.run(new ICrawlComplete() {	
+				public void crawlComplete(CrawlerController c) {
+					CrawlStat stats = myCrawler.getMyStats();
+					System.out.println("Aggregated Statistics:");
+					System.out.println("   Processed Pages: " + stats.getTotalProcessedPages());
+					System.out.println("   Total Links found: " + stats.getTotalLinks());
+					System.out.println("   Total Text Size: " + stats.getTotalTextSize());
+				}
+			});
 		}
 
 }

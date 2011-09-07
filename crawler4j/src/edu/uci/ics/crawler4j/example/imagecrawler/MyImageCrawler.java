@@ -19,9 +19,9 @@ package edu.uci.ics.crawler4j.example.imagecrawler;
 
 import java.io.File;
 import java.util.regex.Pattern;
-
+import edu.uci.ics.crawler4j.crawler.IPageVisitValidator;
+import edu.uci.ics.crawler4j.crawler.IPageVisited;
 import edu.uci.ics.crawler4j.crawler.Page;
-import edu.uci.ics.crawler4j.crawler.WebCrawler;
 import edu.uci.ics.crawler4j.url.WebURL;
 import edu.uci.ics.crawler4j.util.IO;
 
@@ -38,20 +38,20 @@ import edu.uci.ics.crawler4j.util.IO;
  * IMPORTANT: Make sure that you update crawler4j.properties file and 
  *            set crawler.include_images to true
  */
-public class MyImageCrawler extends WebCrawler {
+public class MyImageCrawler implements IPageVisited, IPageVisitValidator {
 
-	private static final Pattern filters = Pattern
+	private final Pattern filters = Pattern
 			.compile(".*(\\.(css|js|mid|mp2|mp3|mp4|wav|avi|mov|mpeg|ram|m4v|pdf"
 					+ "|rm|smil|wmv|swf|wma|zip|rar|gz))$");
 
-	private static final Pattern imgPatterns = Pattern
+	private final Pattern imgPatterns = Pattern
 			.compile(".*(\\.(bmp|gif|jpe?g|png|tiff?))$");
 
-	private static File storageFolder;
-	private static String[] crawlDomains;
+	private File storageFolder;
+	private String[] crawlDomains;
 
-	public static void configure(String[] crawlDomains, String storageFolderName) {
-		MyImageCrawler.crawlDomains = crawlDomains;
+	public MyImageCrawler(String[] crawlDomains, String storageFolderName) {
+		this.crawlDomains = crawlDomains;
 
 		storageFolder = new File(storageFolderName);
 		if (!storageFolder.exists()) {
@@ -59,7 +59,7 @@ public class MyImageCrawler extends WebCrawler {
 		}
 	}
 
-	public boolean shouldVisit(WebURL url) {
+	public boolean canVisit(WebURL url) {
 		String href = url.getURL().toLowerCase();
 		if (filters.matcher(href).matches()) {
 			return false;
@@ -77,7 +77,7 @@ public class MyImageCrawler extends WebCrawler {
 		return false;
 	}
 
-	public void visit(Page page) {
+	public void visited(Page page) {
 		String url = page.getWebURL().getURL();
 
 		// We are only interested in processing images

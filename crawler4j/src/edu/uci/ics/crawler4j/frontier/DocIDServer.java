@@ -27,18 +27,18 @@ import edu.uci.ics.crawler4j.util.Util;
  * @author Yasser Ganjisaffar <yganjisa at uci dot edu>
  */
 
-public final class DocIDServer {
+public final class DocIDServer implements IDocIDServer {
+	private static final Logger logger = Logger.getLogger(DocIDServer.class);
+	
+	private Database docIDsDB = null;
+	
+	private Object mutex = "DocIDServer_Mutex";
 
-	private static Database docIDsDB = null;
+	private int lastDocID;
+	private boolean resumable;
 
-	private static final Logger logger = Logger.getLogger(DocIDServer.class.getName());
-	private static Object mutex = "DocIDServer_Mutex";
-
-	private static int lastDocID;
-	private static boolean resumable;
-
-	public static void init(Environment env, boolean resumable) throws DatabaseException {
-		DocIDServer.resumable = resumable;
+	public DocIDServer(Environment env, boolean resumable) throws DatabaseException {
+		this.resumable = resumable;
 		DatabaseConfig dbConfig = new DatabaseConfig();
 		dbConfig.setAllowCreate(true);
 		dbConfig.setTransactional(resumable);
@@ -59,7 +59,8 @@ public final class DocIDServer {
 	 * Returns the docid of an already seen url.
 	 * If url is not seen before, it will return -1
 	 */
-	public static int getDocID(String url) {
+	@Override
+	public int getDocID(String url) {
 		synchronized (mutex) {
 			if (docIDsDB == null) {
 				return -1;
@@ -80,26 +81,28 @@ public final class DocIDServer {
 		}
 	}
 
-	public static int getNewDocID(String url) {
+	@Override
+	public DocID getNewOrExistingDocID(String url) {
 		synchronized (mutex) {
 			try {
 				// Make sure that we have not already assigned a docid for this URL
 				int docid = getDocID(url);
 				if (docid > 0) {
-					return docid;
+					return new DocID(docid, false);
 				}
 
 				lastDocID++;
 				docIDsDB.put(null, new DatabaseEntry(url.getBytes("UTF-8")), new DatabaseEntry(Util.int2ByteArray(lastDocID)));
-				return lastDocID;
+				return new DocID(lastDocID, true);
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-			return -1;
+			return null;
 		}
 	}
 
-	public static int getDocCount() {
+	@Override
+	public int getDocCount() {
 		try {
 			return (int) docIDsDB.count();
 		} catch (DatabaseException e) {
@@ -108,7 +111,7 @@ public final class DocIDServer {
 		return -1;
 	}
 
-	public static void sync() {
+	public void sync() {
 		if (resumable) {
 			return;
 		}
@@ -122,7 +125,7 @@ public final class DocIDServer {
 		}
 	}
 
-	public static void close() {
+	public void close() {
 		try {
 			docIDsDB.close();
 		} catch (DatabaseException e) {

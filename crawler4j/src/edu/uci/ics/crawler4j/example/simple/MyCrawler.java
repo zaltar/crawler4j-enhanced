@@ -20,15 +20,16 @@ package edu.uci.ics.crawler4j.example.simple;
 import java.util.List;
 import java.util.regex.Pattern;
 
+import edu.uci.ics.crawler4j.crawler.IPageVisitValidator;
+import edu.uci.ics.crawler4j.crawler.IPageVisited;
 import edu.uci.ics.crawler4j.crawler.Page;
-import edu.uci.ics.crawler4j.crawler.WebCrawler;
 import edu.uci.ics.crawler4j.url.WebURL;
 
 /**
  * @author Yasser Ganjisaffar <yganjisa at uci dot edu>
  */
 
-public class MyCrawler extends WebCrawler {
+public class MyCrawler implements IPageVisited, IPageVisitValidator {
 
 	Pattern filters = Pattern.compile(".*(\\.(css|js|bmp|gif|jpe?g"
 			+ "|png|tiff?|mid|mp2|mp3|mp4" + "|wav|avi|mov|mpeg|ram|m4v|pdf"
@@ -37,7 +38,8 @@ public class MyCrawler extends WebCrawler {
 	public MyCrawler() {
 	}
 
-	public boolean shouldVisit(WebURL url) {
+	@Override
+	public boolean canVisit(WebURL url) {
 		String href = url.getURL().toLowerCase();
 		if (filters.matcher(href).matches()) {
 			return false;
@@ -48,7 +50,8 @@ public class MyCrawler extends WebCrawler {
 		return false;
 	}
 	
-	public void visit(Page page) {
+	@Override
+	public void visited(Page page) {
 		int docid = page.getWebURL().getDocid();
         String url = page.getWebURL().getURL();         
         String text = page.getText();

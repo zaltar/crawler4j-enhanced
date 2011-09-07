@@ -18,7 +18,11 @@
 package edu.uci.ics.crawler4j.url;
 
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
+
+import org.apache.commons.logging.LogFactory;
 
 /**
  * @author Yasser Ganjisaffar <yganjisa at uci dot edu>
@@ -35,8 +39,36 @@ public final class URLCanonicalizer {
 		return null;
 	}
 
+	/**
+	 * Return a proper URL with lowercase scheme, lowercase domain,
+	 * stripped hash - used to compare against other previously seen URLs
+	 * @param href A relative or absolute URL
+	 * @param context Null or an absolute URL to use when href is relative
+	 * @return
+	 */
 	public static URL getCanonicalURL(String href, String context) {
-		if (href.contains("#")) {
+		try {
+		URI normalized;
+			if (context != null) {
+				normalized = new URI(context);
+				if (normalized.getPath().equals(""))
+					context += "/";
+				normalized = new URI(context).resolve(href);
+			} else {
+				normalized = new URI(href);
+			}
+			normalized = normalized.normalize();
+			return new URI(normalized.getScheme().toLowerCase(), normalized.getUserInfo(),
+					normalized.getHost(), normalized.getPort(),
+					normalized.getPath(), normalized.getQuery(), null).toURL();
+		} catch (URISyntaxException e) {
+			LogFactory.getLog(URLCanonicalizer.class).error("Unable to canonicalize href: " + href + ", context" + context, e);
+			return null;
+		} catch (MalformedURLException e) {
+			LogFactory.getLog(URLCanonicalizer.class).error("Unable to canonicalize href: " + href + ", context" + context, e);
+			return null;
+		}
+		/*if (href.contains("#")) {
             href = href.substring(0, href.indexOf("#"));
         }
 		href = href.replace(" ", "%20");
@@ -52,11 +84,11 @@ public final class URLCanonicalizer {
         		path = path.substring(3);
         		canonicalURL = new URL(canonicalURL.getProtocol(), canonicalURL.getHost(), canonicalURL.getPort(), path);
         	} else if (path.contains("..")) {
-        		System.out.println(path);
+        		System.out.println("Found path with ..: " + path + " " + href + " " + context);
         	}
         	return canonicalURL;
         } catch (MalformedURLException ex) {
             return null;
-        }
+        }*/
 	}
 }

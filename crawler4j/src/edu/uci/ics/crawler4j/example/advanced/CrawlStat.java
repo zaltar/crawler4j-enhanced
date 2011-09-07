@@ -17,46 +17,37 @@
 
 package edu.uci.ics.crawler4j.example.advanced;
 
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+
 public class CrawlStat {
-	private int totalProcessedPages;
-	private long totalLinks;
-	private long totalTextSize;
+	private AtomicInteger totalProcessedPages = new AtomicInteger();
+	private AtomicLong totalLinks = new AtomicLong();
+	private AtomicLong totalTextSize = new AtomicLong();
 
 	
 	public int getTotalProcessedPages() {
-		return totalProcessedPages;
-	}
-
-	public void setTotalProcessedPages(int totalProcessedPages) {
-		this.totalProcessedPages = totalProcessedPages;
+		return totalProcessedPages.get();
 	}
 	
 	public void incProcessedPages() {
-		this.totalProcessedPages++;
+		this.totalProcessedPages.incrementAndGet();
 	}
 
 	public long getTotalLinks() {
-		return totalLinks;
-	}
-
-	public void setTotalLinks(long totalLinks) {
-		this.totalLinks = totalLinks;
+		return totalLinks.get();
 	}
 
 	public long getTotalTextSize() {
-		return totalTextSize;
-	}
-
-	public void setTotalTextSize(long totalTextSize) {
-		this.totalTextSize = totalTextSize;
+		return totalTextSize.get();
 	}
 	
 	public void incTotalLinks(int count) {
-		this.totalLinks += count;
+		this.totalLinks.addAndGet(count);
 	}
 	
 	public void incTotalTextSize(int count) {
-		this.totalTextSize += count;
+		this.totalTextSize.addAndGet(count);
 	}
 
 }
