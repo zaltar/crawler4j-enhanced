@@ -18,6 +18,8 @@
 package edu.uci.ics.crawler4j.example.simple;
 
 import org.apache.log4j.BasicConfigurator;
+import org.apache.log4j.Level;
+import org.apache.log4j.LogManager;
 
 import edu.uci.ics.crawler4j.crawler.CrawlBuilder;
 import edu.uci.ics.crawler4j.crawler.CrawlerController;
@@ -36,7 +38,7 @@ public class Controller {
 			}
 			
 			BasicConfigurator.configure();
-			
+			LogManager.getRootLogger().setLevel(Level.INFO);
 			/*
 			 * rootfolder is a folder where intermediate crawl data is
 			 * stored. 

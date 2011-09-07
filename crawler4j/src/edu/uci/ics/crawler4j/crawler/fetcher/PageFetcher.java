@@ -32,8 +32,6 @@ import org.apache.http.HttpVersion;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.conn.params.ConnManagerParams;
-import org.apache.http.conn.params.ConnPerRouteBean;
 import org.apache.http.conn.params.ConnRoutePNames;
 import org.apache.http.conn.scheme.PlainSocketFactory;
 import org.apache.http.conn.scheme.Scheme;
@@ -44,18 +42,14 @@ import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
 import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpParams;
 import org.apache.http.params.HttpProtocolParamBean;
+import org.apache.http.util.EntityUtils;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
-
 import edu.uci.ics.crawler4j.crawler.IdleConnectionMonitorThread;
 import edu.uci.ics.crawler4j.crawler.Page;
 import edu.uci.ics.crawler4j.crawler.configuration.ICrawlerSettings;
-import edu.uci.ics.crawler4j.crawler.configuration.SettingsFromPropertiesBuilder;
-import edu.uci.ics.crawler4j.frontier.DocID;
-import edu.uci.ics.crawler4j.frontier.DocIDServer;
 import edu.uci.ics.crawler4j.frontier.IDocIDServer;
 import edu.uci.ics.crawler4j.url.URLCanonicalizer;
-import edu.uci.ics.crawler4j.url.WebURL;
 
 /**
  * @author Yasser Ganjisaffar <yganjisa at uci dot edu>
@@ -64,8 +58,6 @@ import edu.uci.ics.crawler4j.url.WebURL;
 public final class PageFetcher implements IPageFetcher {
 	private static final Logger logger = Logger.getLogger(PageFetcher.class);
 
-	private IDocIDServer docIDServer;
-	
 	private ThreadSafeClientConnManager connectionManager;
 
 	private DefaultHttpClient httpclient;
@@ -88,7 +80,6 @@ public final class PageFetcher implements IPageFetcher {
 		maxDownloadSize = config.getMaxDownloadSize();
 		show404Pages = config.getShow404Pages();
 		ignoreBinary = !config.getIncludeBinaryContent();
-		docIDServer = config.getCrawlState().getDocIDServer();
 		
 		HttpParams params = new BasicHttpParams();
 		HttpProtocolParamBean paramsBean = new HttpProtocolParamBean(params);
@@ -105,20 +96,17 @@ public final class PageFetcher implements IPageFetcher {
 
 		params.setBooleanParameter("http.protocol.handle-redirects", false);
 
-		ConnPerRouteBean connPerRouteBean = new ConnPerRouteBean();
-		connPerRouteBean.setDefaultMaxPerRoute(config.getMaxConnectionsPerHost());
-		ConnManagerParams.setMaxConnectionsPerRoute(params, connPerRouteBean);
-		ConnManagerParams.setMaxTotalConnections(params,
-				config.getMaxTotalConnections());
-
 		SchemeRegistry schemeRegistry = new SchemeRegistry();
-		schemeRegistry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
+		schemeRegistry.register(new Scheme("http", 80, PlainSocketFactory.getSocketFactory()));
 
 		if (config.getAllowHttps()) {
-			schemeRegistry.register(new Scheme("https", SSLSocketFactory.getSocketFactory(), 443));
+			schemeRegistry.register(new Scheme("https", 443, SSLSocketFactory.getSocketFactory()));
 		}
 
-		connectionManager = new ThreadSafeClientConnManager(params, schemeRegistry);
+		connectionManager = new ThreadSafeClientConnManager(schemeRegistry);
+		connectionManager.setDefaultMaxPerRoute(config.getMaxConnectionsPerHost());
+		connectionManager.setMaxTotal(config.getMaxTotalConnections());
+		
 		logger.setLevel(Level.INFO);
 		httpclient = new DefaultHttpClient(connectionManager, params);
 	}
@@ -137,6 +125,24 @@ public final class PageFetcher implements IPageFetcher {
 		}
 	}
 
+	private void waitPolitenessDealyIfNeeded() throws InterruptedException {
+		synchronized(mutex) {
+			long now = (new Date()).getTime();
+			if (now - startOfPeriod > 10000) {
+				logger.info("Number of pages fetched per second: " + processedCount
+						/ ((now - startOfPeriod) / 1000));
+				processedCount = 0;
+				startOfPeriod = now;
+			}
+			processedCount++;
+
+			if (now - lastFetchTime < politenessDelay) {
+				Thread.sleep(politenessDelay - (now - lastFetchTime));
+			}
+			lastFetchTime = (new Date()).getTime();
+		}
+	}
+	
 	@Override
 	public int fetch(Page page) {
 		String toFetchURL = page.getWebURL().getURL();
@@ -144,39 +150,26 @@ public final class PageFetcher implements IPageFetcher {
 		HttpEntity entity = null;
 		try {
 			get = new HttpGet(toFetchURL);
-			synchronized (mutex) {
-				long now = (new Date()).getTime();
-				if (now - startOfPeriod > 10000) {
-					logger.info("Number of pages fetched per second: " + processedCount
-							/ ((now - startOfPeriod) / 1000));
-					processedCount = 0;
-					startOfPeriod = now;
-				}
-				processedCount++;
-
-				if (now - lastFetchTime < politenessDelay) {
-					Thread.sleep(politenessDelay - (now - lastFetchTime));
-				}
-				lastFetchTime = (new Date()).getTime();
-			}
+			
+			waitPolitenessDealyIfNeeded();
+			
 			HttpResponse response = httpclient.execute(get);
 			entity = response.getEntity();
 
 			int statusCode = response.getStatusLine().getStatusCode();
-			if (statusCode != HttpStatus.SC_OK) {
-				if (statusCode != HttpStatus.SC_NOT_FOUND) {
-					if (statusCode == HttpStatus.SC_MOVED_PERMANENTLY || statusCode == HttpStatus.SC_MOVED_TEMPORARILY) {
-						Header header = response.getFirstHeader("Location");
-						if (header != null) {
-							String movedToUrl = header.getValue();
-							//Handle redirects that are relative (violates RFC 1945)
-							if (movedToUrl != null && movedToUrl.startsWith("/")) {
-								movedToUrl = URLCanonicalizer.getCanonicalURL(movedToUrl, toFetchURL).toExternalForm();
-							}
-							page.setRedirectedURL(movedToUrl);
-						}
-						return PageFetchStatus.Moved;
+			if (statusCode == HttpStatus.SC_MOVED_PERMANENTLY || statusCode == HttpStatus.SC_MOVED_TEMPORARILY) {
+				Header header = response.getFirstHeader("Location");
+				if (header != null) {
+					String movedToUrl = header.getValue();
+					//Handle redirects that are relative (violates RFC 1945)
+					if (movedToUrl != null && movedToUrl.startsWith("/")) {
+						movedToUrl = URLCanonicalizer.getCanonicalURL(movedToUrl, toFetchURL).toExternalForm();
 					}
+					page.setRedirectedURL(movedToUrl);
+				}
+				return PageFetchStatus.Moved;
+			} else if (statusCode != HttpStatus.SC_OK) {
+				if (statusCode != HttpStatus.SC_NOT_FOUND) {
 					logger.info("Failed: " + response.getStatusLine().toString() + ", while fetching " + toFetchURL);
 				} else if (show404Pages) {
 					logger.info("Not Found: " + toFetchURL + " (Link found in doc#: "
@@ -186,8 +179,10 @@ public final class PageFetcher implements IPageFetcher {
 			}
 
 			String uri = get.getURI().toString();
+			//According to HttpGet docs, URI remains unchanged so this should be impossible
 			if (!uri.equals(toFetchURL)) {
-				if (!URLCanonicalizer.getCanonicalURL(uri).equals(toFetchURL)) {
+				logger.debug("Someone HttpGet URI changed from " + toFetchURL + " to " + uri);
+				/*if (!URLCanonicalizer.getCanonicalURL(uri).equals(toFetchURL)) {
 					DocID newdocid = docIDServer.getNewOrExistingDocID(uri);
 					
 					if (!newdocid.isNew()) {
@@ -197,61 +192,60 @@ public final class PageFetcher implements IPageFetcher {
 					webURL.setURL(uri);
 					webURL.setDocid(newdocid.getId());
 					page.setWebURL(webURL);
+				}*/
+			}
+
+			if (entity == null) {
+				get.abort();
+				return PageFetchStatus.UnknownError;
+			}
+			
+			long size = entity.getContentLength();
+			if (size == -1) {
+				Header length = response.getLastHeader("Content-Length");
+				if (length != null) {
+					size = Integer.parseInt(length.getValue());
+				} else {
+					size = -1;
+				}
+				
+				if (size >= 0)
+					logger.debug("getContentLength failed but header exists!?");
+			}
+			
+			if (size > maxDownloadSize) {
+				EntityUtils.consume(entity);
+				return PageFetchStatus.PageTooBig;
+			}
+
+			boolean isBinary = false;
+			String charset = "UTF-8";
+			Header type = entity.getContentType();
+			if (type != null) {
+				int semicolonPos = type.getValue().indexOf(';');
+				String typeStr;
+				if (semicolonPos > 0) {
+					typeStr = type.getValue().toLowerCase().substring(0, semicolonPos);
+				} else {
+					typeStr = type.getValue().toLowerCase();
+				}
+				page.setContentType(typeStr);
+				
+				if (!typeStr.startsWith("text/")) {
+					isBinary = true;
+					if (ignoreBinary) {
+						return PageFetchStatus.PageIsBinary;
+					}
+				}
+				if (!isBinary && typeStr.contains("charset=")) {
+					charset = type.getValue().substring(typeStr.indexOf("charset=") + 8);
 				}
 			}
 
-			if (entity != null) {
-				long size = entity.getContentLength();
-				if (size == -1) {
-					Header length = response.getLastHeader("Content-Length");
-					if (length == null) {
-						length = response.getLastHeader("Content-length");
-					}
-					if (length != null) {
-						size = Integer.parseInt(length.getValue());
-					} else {
-						size = -1;
-					}
-					
-					if (size >= 0)
-						logger.debug("getContentLength failed but header exists!?");
-				}
-				if (size > maxDownloadSize) {
-					entity.consumeContent();
-					return PageFetchStatus.PageTooBig;
-				}
-
-				boolean isBinary = false;
-				String charset = "UTF-8";
-				Header type = entity.getContentType();
-				if (type != null) {
-					int semicolonPos = type.getValue().indexOf(';');
-					String typeStr;
-					if (semicolonPos > 0) {
-						typeStr = type.getValue().toLowerCase().substring(0, semicolonPos);
-					} else {
-						typeStr = type.getValue().toLowerCase();
-					}
-					page.setContentType(typeStr);
-					
-					if (!typeStr.startsWith("text/")) {
-						isBinary = true;
-						if (ignoreBinary) {
-							return PageFetchStatus.PageIsBinary;
-						}
-					}
-					if (!isBinary && typeStr.contains("charset=")) {
-						charset = type.getValue().substring(typeStr.indexOf("charset=") + 8);
-					}
-				}
-
-				if (loadPage(page, entity.getContent(), (int) size, isBinary, charset)) {
-					return PageFetchStatus.OK;
-				} else {
-					return PageFetchStatus.PageLoadError;
-				}
+			if (loadPage(page, entity.getContent(), (int) size, isBinary, charset)) {
+				return PageFetchStatus.OK;
 			} else {
-				get.abort();
+				return PageFetchStatus.PageLoadError;
 			}
 		} catch (IOException e) {
 			logger.error("Fatal transport error: " + e.getMessage() + " while fetching " + toFetchURL
@@ -269,7 +263,7 @@ public final class PageFetcher implements IPageFetcher {
 		} finally {
 			try {
 				if (entity != null) {
-					entity.consumeContent();
+					EntityUtils.consume(entity);
 				} else if (get != null) {
 					get.abort();
 				}

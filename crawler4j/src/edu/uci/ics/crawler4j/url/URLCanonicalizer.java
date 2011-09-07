@@ -48,7 +48,7 @@ public final class URLCanonicalizer {
 	 */
 	public static URL getCanonicalURL(String href, String context) {
 		try {
-		URI normalized;
+			URI normalized;
 			if (context != null) {
 				normalized = new URI(context);
 				if (normalized.getPath().equals(""))
@@ -65,6 +65,9 @@ public final class URLCanonicalizer {
 			LogFactory.getLog(URLCanonicalizer.class).error("Unable to canonicalize href: " + href + ", context" + context, e);
 			return null;
 		} catch (MalformedURLException e) {
+			LogFactory.getLog(URLCanonicalizer.class).error("Unable to canonicalize href: " + href + ", context" + context, e);
+			return null;
+		} catch (IllegalArgumentException e) {
 			LogFactory.getLog(URLCanonicalizer.class).error("Unable to canonicalize href: " + href + ", context" + context, e);
 			return null;
 		}
