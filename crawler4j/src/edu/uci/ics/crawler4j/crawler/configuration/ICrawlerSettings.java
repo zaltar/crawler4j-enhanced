@@ -3,10 +3,10 @@ package edu.uci.ics.crawler4j.crawler.configuration;
 import edu.uci.ics.crawler4j.crawler.IPageVisitValidator;
 import edu.uci.ics.crawler4j.crawler.IPageVisited;
 import edu.uci.ics.crawler4j.crawler.fetcher.IPageFetcher;
-import edu.uci.ics.crawler4j.extractor.IPageParser;
 import edu.uci.ics.crawler4j.extractor.PageParserManager;
 import edu.uci.ics.crawler4j.frontier.ICrawlState;
 import edu.uci.ics.crawler4j.robotstxt.RobotstxtServer;
+import edu.uci.ics.crawler4j.cache.ICacheProvider;
 
 public interface ICrawlerSettings extends Cloneable {
 
@@ -61,6 +61,8 @@ public interface ICrawlerSettings extends Cloneable {
 	public RobotstxtServer getRobotstxtServer();
 	
 	public IPageVisited getPageVisitedCallback();
+	
+	public ICacheProvider getCacheProvider();
 	
 	public Object clone() throws CloneNotSupportedException;
 }

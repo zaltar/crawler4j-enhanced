@@ -3,6 +3,7 @@ package edu.uci.ics.crawler4j.crawler.configuration;
 import edu.uci.ics.crawler4j.extractor.PageParserManager;
 import edu.uci.ics.crawler4j.frontier.ICrawlState;
 import edu.uci.ics.crawler4j.robotstxt.RobotstxtServer;
+import edu.uci.ics.crawler4j.cache.ICacheProvider;
 import edu.uci.ics.crawler4j.crawler.IPageVisitValidator;
 import edu.uci.ics.crawler4j.crawler.IPageVisited;
 import edu.uci.ics.crawler4j.crawler.fetcher.IPageFetcher;
@@ -21,6 +22,7 @@ public final class CrawlerSettings implements ICrawlerSettings {
 	private RobotstxtServer robotstxtServer;
 	private PageParserManager pageParserManager;
 	private IPageVisited pageVisitedCallback;
+	private ICacheProvider cacheProvider;
 	
 	public Object clone() throws CloneNotSupportedException {
 		CrawlerSettings clone = (CrawlerSettings)super.clone();
@@ -195,5 +197,13 @@ public final class CrawlerSettings implements ICrawlerSettings {
 
 	public IPageVisited getPageVisitedCallback() {
 		return pageVisitedCallback;
+	}
+
+	public void setCacheProvider(ICacheProvider cacheProvider) {
+		this.cacheProvider = cacheProvider;
+	}
+
+	public ICacheProvider getCacheProvider() {
+		return cacheProvider;
 	}
 }

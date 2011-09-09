@@ -1,13 +1,9 @@
 package edu.uci.ics.crawler4j.crawler;
 
 import java.util.HashMap;
-import java.util.Properties;
-
-import org.apache.http.conn.params.ConnManagerParams;
-
+import edu.uci.ics.crawler4j.cache.ICacheProvider;
 import edu.uci.ics.crawler4j.crawler.configuration.CrawlerSettings;
 import edu.uci.ics.crawler4j.crawler.configuration.SettingsBuilder;
-import edu.uci.ics.crawler4j.crawler.configuration.SettingsFromPropertiesBuilder;
 import edu.uci.ics.crawler4j.crawler.exceptions.CrawlerBuildError;
 import edu.uci.ics.crawler4j.crawler.fetcher.IPageFetcherCreator;
 import edu.uci.ics.crawler4j.crawler.fetcher.PageFetcher;
@@ -23,6 +19,7 @@ public class CrawlBuilder {
 	private ICrawlStateCreator crawlStateCreator;
 	private IPageVisitValidator visitValidator;
 	private IPageVisited pageVisited;
+	private ICacheProvider cacheProvider;
 	private HashMap<String, IPageParser> pageParsers = new HashMap<String, IPageParser>();
 	
 	public CrawlBuilder() {
@@ -57,12 +54,18 @@ public class CrawlBuilder {
 		this.pageVisited = pageVisited;
 		return this;
 	};
+
+	public CrawlBuilder setCacheProvider(ICacheProvider cache) {
+		this.cacheProvider = cache;
+		return this;
+	}
 	
 	public CrawlerController build() throws CrawlerBuildError {
 		CrawlerSettings settings = settingsBuilder.build();
 		
 		settings.setPageVisitValidator(visitValidator);
 		settings.setPageVisitedCallback(pageVisited);
+		settings.setCacheProvider(cacheProvider);
 		
 		if (crawlStateCreator != null)
 			settings.setCrawlState(crawlStateCreator.getCrawlState(settings));

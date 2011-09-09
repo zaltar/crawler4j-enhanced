@@ -10,7 +10,6 @@ import edu.uci.ics.crawler4j.crawler.CrawlerController.URLManager;
 import edu.uci.ics.crawler4j.crawler.configuration.ICrawlerSettings;
 import edu.uci.ics.crawler4j.crawler.fetcher.IPageFetcher;
 import edu.uci.ics.crawler4j.crawler.fetcher.PageFetchStatus;
-import edu.uci.ics.crawler4j.crawler.fetcher.PageFetcher;
 import edu.uci.ics.crawler4j.extractor.IPageParser;
 import edu.uci.ics.crawler4j.extractor.PageParserManager;
 import edu.uci.ics.crawler4j.frontier.DocID;
@@ -87,10 +86,12 @@ public class CrawlRunner implements Runnable {
 		Page page = new Page(curURL);
 		int statusCode = pageFetcher.fetch(page);
 		
-		if (statusCode == PageFetchStatus.OK) {
+		if (statusCode == PageFetchStatus.OK ||
+				statusCode == PageFetchStatus.NotModified) {
 			IPageParser parser = pageParserManager.getParser(page);
 			if (parser != null) {
-				doParse(page, parser);
+				parser.parse(page);
+				queueLinks(page, parser.getLinks().iterator());
 			}
 			if (config.getPageVisitedCallback() != null)
 				config.getPageVisitedCallback().visited(page);
@@ -126,9 +127,7 @@ public class CrawlRunner implements Runnable {
 		}
 	}
 	
-	private void doParse(Page page, IPageParser parser) {
-		parser.parse(page);
-		Iterator<String> it = parser.getLinks().iterator();
+	private void queueLinks(final Page page, Iterator<String> it) {
 		List<WebURL> toSchedule = new ArrayList<WebURL>();
 		List<WebURL> toList = new ArrayList<WebURL>();
 		while (it.hasNext()) {

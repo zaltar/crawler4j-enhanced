@@ -22,7 +22,10 @@ import java.io.InputStream;
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.util.Calendar;
 import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.TimeZone;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHost;
@@ -39,16 +42,18 @@ import org.apache.http.conn.scheme.SchemeRegistry;
 import org.apache.http.conn.ssl.SSLSocketFactory;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
+import org.apache.http.impl.cookie.DateParseException;
+import org.apache.http.impl.cookie.DateUtils;
 import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpParams;
 import org.apache.http.params.HttpProtocolParamBean;
 import org.apache.http.util.EntityUtils;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+import edu.uci.ics.crawler4j.cache.ICacheProvider;
 import edu.uci.ics.crawler4j.crawler.IdleConnectionMonitorThread;
 import edu.uci.ics.crawler4j.crawler.Page;
 import edu.uci.ics.crawler4j.crawler.configuration.ICrawlerSettings;
-import edu.uci.ics.crawler4j.frontier.IDocIDServer;
 import edu.uci.ics.crawler4j.url.URLCanonicalizer;
 
 /**
@@ -58,6 +63,7 @@ import edu.uci.ics.crawler4j.url.URLCanonicalizer;
 public final class PageFetcher implements IPageFetcher {
 	private static final Logger logger = Logger.getLogger(PageFetcher.class);
 
+	private ICacheProvider cache;
 	private ThreadSafeClientConnManager connectionManager;
 
 	private DefaultHttpClient httpclient;
@@ -80,6 +86,7 @@ public final class PageFetcher implements IPageFetcher {
 		maxDownloadSize = config.getMaxDownloadSize();
 		show404Pages = config.getShow404Pages();
 		ignoreBinary = !config.getIncludeBinaryContent();
+		cache = config.getCacheProvider();
 		
 		HttpParams params = new BasicHttpParams();
 		HttpProtocolParamBean paramsBean = new HttpProtocolParamBean(params);
@@ -153,6 +160,18 @@ public final class PageFetcher implements IPageFetcher {
 			
 			waitPolitenessDealyIfNeeded();
 			
+			if (cache != null) {
+				String eTag = cache.getCachedETag(toFetchURL);
+				Calendar lastMod = cache.getLastModified(toFetchURL);
+				if (eTag != null) {
+					get.addHeader("If-None-Match", eTag);
+				}
+				
+				if (lastMod != null) {
+					get.addHeader("If-Modified-Since", DateUtils.formatDate(lastMod.getTime()));
+				}
+			}
+			
 			HttpResponse response = httpclient.execute(get);
 			entity = response.getEntity();
 
@@ -168,6 +187,10 @@ public final class PageFetcher implements IPageFetcher {
 					page.setRedirectedURL(movedToUrl);
 				}
 				return PageFetchStatus.Moved;
+			} else if (statusCode == HttpStatus.SC_NOT_MODIFIED &&
+					cache != null) {
+				cache.getCachedPage(page);
+				return PageFetchStatus.NotModified;
 			} else if (statusCode != HttpStatus.SC_OK) {
 				if (statusCode != HttpStatus.SC_NOT_FOUND) {
 					logger.info("Failed: " + response.getStatusLine().toString() + ", while fetching " + toFetchURL);
@@ -175,24 +198,7 @@ public final class PageFetcher implements IPageFetcher {
 					logger.info("Not Found: " + toFetchURL + " (Link found in doc#: "
 							+ page.getWebURL().getParentDocid() + ")");
 				}
-				return response.getStatusLine().getStatusCode();
-			}
-
-			String uri = get.getURI().toString();
-			//According to HttpGet docs, URI remains unchanged so this should be impossible
-			if (!uri.equals(toFetchURL)) {
-				logger.debug("Someone HttpGet URI changed from " + toFetchURL + " to " + uri);
-				/*if (!URLCanonicalizer.getCanonicalURL(uri).equals(toFetchURL)) {
-					DocID newdocid = docIDServer.getNewOrExistingDocID(uri);
-					
-					if (!newdocid.isNew()) {
-						return PageFetchStatus.RedirectedPageIsSeen;
-					}
-					WebURL webURL = new WebURL(page.getWebURL());
-					webURL.setURL(uri);
-					webURL.setDocid(newdocid.getId());
-					page.setWebURL(webURL);
-				}*/
+				return statusCode;
 			}
 
 			if (entity == null) {
@@ -241,6 +247,8 @@ public final class PageFetcher implements IPageFetcher {
 					charset = type.getValue().substring(typeStr.indexOf("charset=") + 8);
 				}
 			}
+			
+			parseCacheHeaders(page, response);
 
 			if (loadPage(page, entity.getContent(), (int) size, isBinary, charset)) {
 				return PageFetchStatus.OK;
@@ -272,6 +280,40 @@ public final class PageFetcher implements IPageFetcher {
 			}
 		}
 		return PageFetchStatus.UnknownError;
+	}
+	
+	private void parseCacheHeaders(final Page page, final HttpResponse response) {
+		for (Header h : response.getAllHeaders()) {
+			System.out.println(h.getName() + ": " + h.getValue());
+		}
+		
+		boolean canCache = true;
+		Header cacheControl = response.getLastHeader("cache-control");
+		if (cacheControl != null) {
+			String[] cacheControls = cacheControl.getValue().split(",");
+			for (String cc : cacheControls) {
+				if (cc.equalsIgnoreCase("no-cache") ||
+						cc.equalsIgnoreCase("no-store")) {
+					canCache = false;
+					break;
+				}
+			}
+		}
+		if (canCache) {
+			Header lastMod = response.getLastHeader("last-modified");
+			if (lastMod != null) {
+				try {
+					Calendar lastModCal = new GregorianCalendar(TimeZone.getTimeZone("GMT"));
+					lastModCal.setTimeInMillis(DateUtils.parseDate(lastMod.getValue()).getTime());
+					page.setLastModified(lastModCal);
+				} catch (DateParseException e) {
+					logger.debug("Unable to parse last modified date: " + lastMod.getValue(), e);
+				}
+			}
+			Header etag = response.getLastHeader("etag");
+			if (etag != null) 
+				page.setETag(etag.getValue());
+		}
 	}
 	
 	private boolean loadPage(final Page p, final InputStream in, 

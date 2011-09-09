@@ -17,6 +17,7 @@
 
 package edu.uci.ics.crawler4j.crawler;
 
+import java.util.Calendar;
 import java.util.List;
 import edu.uci.ics.crawler4j.url.WebURL;
 
@@ -37,6 +38,9 @@ public class Page {
 	private String title;
 	
 	private String contentType;
+	
+	private Calendar lastModified;
+	private String eTag;
 
 	// binary data (e.g, image content)
 	// It's null for html pages
@@ -115,6 +119,22 @@ public class Page {
 
 	public String getContentType() {
 		return contentType;
+	}
+	
+	public String getETag() {
+		return eTag;
+	}
+
+	public void setETag(String eTag) {
+		this.eTag = eTag;
+	}
+
+	public void setLastModified(Calendar lastModified) {
+		this.lastModified = lastModified;
+	}
+
+	public Calendar getLastModified() {
+		return lastModified;
 	}
 
 }
