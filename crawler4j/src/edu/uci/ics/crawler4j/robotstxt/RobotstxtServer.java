@@ -24,7 +24,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import edu.uci.ics.crawler4j.crawler.Page;
 import edu.uci.ics.crawler4j.crawler.configuration.ICrawlerSettings;
-import edu.uci.ics.crawler4j.crawler.configuration.SettingsFromPropertiesBuilder;
 import edu.uci.ics.crawler4j.crawler.fetcher.IPageFetcher;
 import edu.uci.ics.crawler4j.crawler.fetcher.PageFetchStatus;
 import edu.uci.ics.crawler4j.url.WebURL;

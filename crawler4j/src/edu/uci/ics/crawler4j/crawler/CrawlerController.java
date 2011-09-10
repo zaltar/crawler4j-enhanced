@@ -5,13 +5,8 @@ import java.util.List;
 import org.apache.log4j.Logger;
 import edu.uci.ics.crawler4j.crawler.configuration.ICrawlerSettings;
 import edu.uci.ics.crawler4j.crawler.exceptions.CrawlerStillRunningException;
-import edu.uci.ics.crawler4j.crawler.fetcher.PageFetcher;
-import edu.uci.ics.crawler4j.extractor.PageParserManager;
 import edu.uci.ics.crawler4j.frontier.DocID;
-import edu.uci.ics.crawler4j.frontier.Frontier;
 import edu.uci.ics.crawler4j.frontier.ICrawlState;
-import edu.uci.ics.crawler4j.frontier.IDocIDServer;
-import edu.uci.ics.crawler4j.robotstxt.RobotstxtServer;
 import edu.uci.ics.crawler4j.url.URLCanonicalizer;
 import edu.uci.ics.crawler4j.url.WebURL;
 
