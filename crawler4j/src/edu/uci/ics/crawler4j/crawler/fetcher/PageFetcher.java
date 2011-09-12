@@ -283,10 +283,6 @@ public final class PageFetcher implements IPageFetcher {
 	}
 	
 	private void parseCacheHeaders(final Page page, final HttpResponse response) {
-		for (Header h : response.getAllHeaders()) {
-			System.out.println(h.getName() + ": " + h.getValue());
-		}
-		
 		boolean canCache = true;
 		Header cacheControl = response.getLastHeader("cache-control");
 		if (cacheControl != null) {
