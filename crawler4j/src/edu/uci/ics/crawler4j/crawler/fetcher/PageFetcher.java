@@ -187,9 +187,9 @@ public final class PageFetcher implements IPageFetcher {
 					page.setRedirectedURL(movedToUrl);
 				}
 				return PageFetchStatus.Moved;
-			} else if (statusCode == HttpStatus.SC_NOT_MODIFIED &&
-					cache != null) {
-				cache.getCachedPage(page);
+			} else if (statusCode == HttpStatus.SC_NOT_MODIFIED) {
+				cache.setupCachedPage(page);
+				page.setFromCache(true);
 				return PageFetchStatus.NotModified;
 			} else if (statusCode != HttpStatus.SC_OK) {
 				if (statusCode != HttpStatus.SC_NOT_FOUND) {
@@ -251,6 +251,7 @@ public final class PageFetcher implements IPageFetcher {
 			parseCacheHeaders(page, response);
 
 			if (loadPage(page, entity.getContent(), (int) size, isBinary, charset)) {
+				page.setFromCache(false);
 				return PageFetchStatus.OK;
 			} else {
 				return PageFetchStatus.PageLoadError;

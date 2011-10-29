@@ -28,9 +28,7 @@ import edu.uci.ics.crawler4j.url.WebURL;
 public class Page {
 
 	private WebURL url;
-	
 	private String redirectedURL;
-
 	private String html;
 
 	// Data for textual content
@@ -38,9 +36,9 @@ public class Page {
 	private String title;
 	
 	private String contentType;
-	
 	private Calendar lastModified;
 	private String eTag;
+	private boolean fromCache;
 
 	// binary data (e.g, image content)
 	// It's null for html pages
@@ -135,6 +133,14 @@ public class Page {
 
 	public Calendar getLastModified() {
 		return lastModified;
+	}
+
+	public boolean isFromCache() {
+		return fromCache;
+	}
+
+	public void setFromCache(boolean fromCache) {
+		this.fromCache = fromCache;
 	}
 
 }

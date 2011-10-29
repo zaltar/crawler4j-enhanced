@@ -3,9 +3,11 @@ package edu.uci.ics.crawler4j.crawler;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.log4j.Logger;
 
+import edu.uci.ics.crawler4j.cache.ICacheProvider;
 import edu.uci.ics.crawler4j.crawler.CrawlerController.URLManager;
 import edu.uci.ics.crawler4j.crawler.configuration.ICrawlerSettings;
 import edu.uci.ics.crawler4j.crawler.fetcher.IPageFetcher;
@@ -26,6 +28,7 @@ public class CrawlRunner implements Runnable {
 	private ICrawlerSettings config;
 	private IPageFetcher pageFetcher;
 	private IPageVisitValidator visitValidator;
+	private ICacheProvider cacheProvider;
 	private RobotstxtServer robotsChecker;
 	private PageParserManager pageParserManager;
 	private IDocIDServer docIDServer;
@@ -40,6 +43,7 @@ public class CrawlRunner implements Runnable {
 		this.pageParserManager = config.getPageParserManager();
 		this.docIDServer = config.getCrawlState().getDocIDServer();
 		this.robotsChecker = config.getRobotstxtServer();
+		this.cacheProvider = config.getCacheProvider();
 		MAX_CRAWL_DEPTH = config.getMaxDepth();
 		
 		t = new Thread(this);
@@ -67,9 +71,6 @@ public class CrawlRunner implements Runnable {
 			assignedURLs.clear();
 			assignedURLs = new ArrayList<WebURL>(50);
 			urlManager.getNextURLs(50, assignedURLs);
-			//if (assignedURLs.size() == 0) {
-			//	return;
-			//}
 			
 			for (WebURL url : assignedURLs) {
 				processPage(url);
@@ -88,11 +89,24 @@ public class CrawlRunner implements Runnable {
 		
 		if (statusCode == PageFetchStatus.OK ||
 				statusCode == PageFetchStatus.NotModified) {
-			IPageParser parser = pageParserManager.getParser(page);
-			if (parser != null) {
-				parser.parse(page);
-				queueLinks(page, parser.getLinks().iterator());
+			Set<String> links = null;
+			if (statusCode == PageFetchStatus.NotModified &&
+					cacheProvider != null) {
+				links = cacheProvider.getCachedLinks(page);
 			}
+			
+			if (links == null) {
+				IPageParser parser = pageParserManager.getParser(page);
+				if (parser != null) {
+					parser.parse(page);
+					links = parser.getLinks();
+				}
+			}
+			
+			if (links != null) {
+				queueLinks(page, links.iterator());
+			}
+			
 			if (config.getPageVisitedCallback() != null)
 				config.getPageVisitedCallback().visited(page);
 		} else if (statusCode == PageFetchStatus.Moved) {
