@@ -60,7 +60,8 @@ public final class URLCanonicalizer {
 			normalized = normalized.normalize();
 			return new URI(normalized.getScheme().toLowerCase(), normalized.getUserInfo(),
 					normalized.getHost(), normalized.getPort(),
-					normalized.getPath(), normalized.getQuery(), null).toURL();
+					normalized.getPath().equals("") ? "/" : normalized.getPath(), 
+					normalized.getQuery(), null).toURL();
 		} catch (URISyntaxException e) {
 			LogFactory.getLog(URLCanonicalizer.class).error("Unable to canonicalize href: " + href + ", context" + context, e);
 			return null;
