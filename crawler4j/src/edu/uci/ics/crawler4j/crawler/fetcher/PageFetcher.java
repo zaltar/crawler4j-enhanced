@@ -225,7 +225,7 @@ public final class PageFetcher implements IPageFetcher {
 			}
 
 			boolean isBinary = false;
-			String charset = "UTF-8";
+			String charset = null;
 			Header type = entity.getContentType();
 			if (type != null) {
 				int semicolonPos = type.getValue().indexOf(';');
@@ -314,7 +314,7 @@ public final class PageFetcher implements IPageFetcher {
 	}
 	
 	private boolean loadPage(final Page p, final InputStream in, 
-			final int totalsize, final boolean isBinary, final String encoding) {
+			final int totalsize, final boolean isBinary, String encoding) {
 		ByteBuffer bBuf;
 		
 		if (totalsize > 0) {
@@ -347,7 +347,29 @@ public final class PageFetcher implements IPageFetcher {
 			bBuf.get(tmp);
 			p.setBinaryData(tmp);
 		} else {
-			String html = Charset.forName(encoding).decode(bBuf).toString();
+			String html = "";
+			if (encoding == null) {
+				int pos = bBuf.position();
+				html = Charset.forName("UTF-8").decode(bBuf).toString();
+				bBuf.position(pos);
+				pos = html.indexOf("<meta http-equiv=\"Content-Type\" content=\"");
+				if (pos >= 0) { 
+					int end = html.indexOf("\"", pos + 41);
+					if (end >= 0) {
+						String content = html.substring(pos, end);
+						if (content.contains("charset=")) {
+							encoding = content.substring(content.indexOf("charset=") + 8);
+						}
+					}
+				}
+			}
+			if (encoding == null || !Charset.isSupported(encoding))
+				encoding = "UTF-8";
+			
+			if (!encoding.equals("UTF-8")) {
+				html = Charset.forName(encoding).decode(bBuf).toString();
+			}
+			
 			if (html.length() == 0) {
 				return false;
 			}
