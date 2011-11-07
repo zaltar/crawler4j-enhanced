@@ -2,6 +2,8 @@ package edu.uci.ics.crawler4j.crawler;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.apache.log4j.Logger;
 import edu.uci.ics.crawler4j.crawler.configuration.ICrawlerSettings;
 import edu.uci.ics.crawler4j.crawler.exceptions.CrawlerStillRunningException;
@@ -14,7 +16,8 @@ public final class CrawlerController {
 	private static final Logger logger = Logger.getLogger(CrawlerController.class);
 	private ArrayList<CrawlRunner> crawlers;
 	private ICrawlerSettings config;
-	private volatile boolean isFinished = true;
+	private AtomicBoolean wasRun = new AtomicBoolean(false),
+			isDisposed = new AtomicBoolean(false);
 	private ICrawlState frontier;
 	private ICrawlComplete finishedCallback = null;
 	
@@ -27,15 +30,15 @@ public final class CrawlerController {
 		}
 	}
 	
-	public synchronized void run() throws CrawlerStillRunningException {
+	public void run() throws CrawlerStillRunningException {
 		run(null);
 	}
 	
-	public synchronized void run(ICrawlComplete finishedCallback) throws CrawlerStillRunningException {
-		if (isFinished) {
+	public void run(ICrawlComplete finishedCallback) throws CrawlerStillRunningException {
+		if (!isDisposed.get() &&
+				wasRun.compareAndSet(false, true)) {
 			this.finishedCallback = finishedCallback;
 			URLManager urlManager = new URLManager(crawlers.size());
-			isFinished = false;
 			
 			logger.debug("Starting " + crawlers.size() + " crawlers.");
 			
@@ -48,20 +51,23 @@ public final class CrawlerController {
 	}
 	
 	public boolean isFinished() {
-		return isFinished;
+		return wasRun.get() && isDisposed.get();
 	}
 	
 	private void finished() {
-		logger.debug("Received finished from a crawler. Waiting for them all to stop.");
-		for (CrawlRunner c : crawlers) {
-			c.stop();
-		}
-		
-		if (finishedCallback != null)
-			finishedCallback.crawlComplete(this);
+		if (isDisposed.compareAndSet(false, true)) {
+			logger.debug("Received finished from a crawler. Waiting for them all to stop.");
+			for (CrawlRunner c : crawlers) {
+				c.stop();
+			}
 			
-		isFinished = true;
-		logger.debug("Crawler threads all finished.");
+			this.frontier.close();
+			
+			if (finishedCallback != null)
+				finishedCallback.crawlComplete(this);
+				
+			logger.debug("Crawler threads all finished.");
+		}
 	}
 	
 	public void addSeed(String pageUrl) {

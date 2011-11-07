@@ -68,7 +68,7 @@ public final class Frontier implements ICrawlState {
 		if (!resumable) {
 			IO.deleteFolderContents(envHome);
 		}
-
+		
 		env = new Environment(envHome, envConfig);
 		
 		try {
@@ -168,7 +168,21 @@ public final class Frontier implements ICrawlState {
 	@Override
 	public void close() {
 		sync();
-		workQueues.close();
-		docIdServer.close();
+		if (workQueues != null) {
+			workQueues.close();
+			workQueues = null;
+		}
+		if (inprocessPages != null) {
+			inprocessPages.close();
+			inprocessPages = null;
+		}
+		if (docIdServer != null) {
+			docIdServer.close();
+			docIdServer = null;
+		}
+		if (env != null) {
+			env.close();
+			env = null;
+		}
 	}
 }
