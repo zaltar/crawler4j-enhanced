@@ -51,12 +51,12 @@ public class RobotstxtServer {
 		pageFetcher = config.getPageFetcher();
 	}
 	
-	public boolean allows(WebURL webURL) {
+	public boolean allows(String check) {
 		if (!active) {
 			return true;
 		}
 		try {
-			URL url = new URL(webURL.getURL());
+			URL url = new URL(check);
 			String host = url.getHost().toLowerCase();
 			String path = url.getPath();
 			

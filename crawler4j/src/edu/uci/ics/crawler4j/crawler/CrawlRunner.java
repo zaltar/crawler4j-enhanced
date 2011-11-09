@@ -134,8 +134,8 @@ public class CrawlRunner implements Runnable {
 					webURL.setParentDocid(curURL.getParentDocid());
 					webURL.setDepth(curURL.getDepth());
 					webURL.setDocid(newdocid.getId());
-					if ((visitValidator ==  null || visitValidator.canVisit(webURL)) &&
-							robotsChecker.allows(webURL)) {
+					if ((visitValidator ==  null || visitValidator.canVisit(webURL.getURL())) &&
+							robotsChecker.allows(webURL.getURL())) {
 						urlManager.schedule(webURL);
 					}
 				}
@@ -151,28 +151,27 @@ public class CrawlRunner implements Runnable {
 		while (it.hasNext()) {
 			String url = it.next();
 			if (url != null) {
-				DocID newdocid = docIDServer.getNewOrExistingDocID(url);
-				if (!newdocid.isNew()) {
-					//Ignore links to ourself
-					if (newdocid.getId() != page.getWebURL().getDocid()) {
-						WebURL webURL = new WebURL();
-						webURL.setURL(url);
-						webURL.setDocid(newdocid.getId());
-						toList.add(webURL);
-					}
-				} else {
-					WebURL webURL = new WebURL();
-					webURL.setURL(url);
-					webURL.setDocid(-1);
-					webURL.setParentDocid(page.getWebURL().getDocid());
-					webURL.setDepth((short) (page.getWebURL().getDepth() + 1));							
-					if ((visitValidator ==  null || visitValidator.canVisit(webURL)) &&
-							robotsChecker.allows(webURL)) {
-						if (MAX_CRAWL_DEPTH == -1 || page.getWebURL().getDepth() < MAX_CRAWL_DEPTH) {
+				if ((visitValidator ==  null || visitValidator.canVisit(url)) &&
+						robotsChecker.allows(url) &&
+						(MAX_CRAWL_DEPTH == -1 || page.getWebURL().getDepth() < MAX_CRAWL_DEPTH)) {
+					DocID newdocid = docIDServer.getNewOrExistingDocID(url);
+					if (!newdocid.isNew()) {
+						//Ignore links to ourself
+						if (newdocid.getId() != page.getWebURL().getDocid()) {
+							WebURL webURL = new WebURL();
+							webURL.setURL(url);
 							webURL.setDocid(newdocid.getId());
-							toSchedule.add(webURL);
 							toList.add(webURL);
 						}
+					} else {
+						WebURL webURL = new WebURL();
+						webURL.setURL(url);
+						webURL.setDocid(-1);
+						webURL.setParentDocid(page.getWebURL().getDocid());
+						webURL.setDepth((short) (page.getWebURL().getDepth() + 1));
+						webURL.setDocid(newdocid.getId());
+						toSchedule.add(webURL);
+						toList.add(webURL);
 					}
 				}
 			}

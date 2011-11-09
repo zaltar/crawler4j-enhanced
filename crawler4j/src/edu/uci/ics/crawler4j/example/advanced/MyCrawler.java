@@ -37,8 +37,8 @@ public class MyCrawler implements IPageVisited, IPageVisitValidator {
 		myCrawlStat = new CrawlStat();
 	}
 
-	public boolean canVisit(WebURL url) {
-		String href = url.getURL().toLowerCase();
+	public boolean canVisit(String url) {
+		String href = url.toLowerCase();
 		if (filters.matcher(href).matches()) {
 			return false;
 		}

@@ -85,6 +85,9 @@ public class HTMLParser implements IPageParser {
 	}
 	
 	private int handleLink(String href, String contextURL) {
+		if (href == null)
+			return 0;
+		
 		href = href.trim();
 		if (href.length() == 0) {
 			return 0;

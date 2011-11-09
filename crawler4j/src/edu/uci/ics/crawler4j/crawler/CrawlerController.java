@@ -83,13 +83,13 @@ public final class CrawlerController {
 			return;
 		}
 
-		WebURL webUrl = new WebURL();
-		webUrl.setURL(canonicalUrl);
-		webUrl.setDocid(docid.getId());
-		webUrl.setDepth((short) 0);
-		if (!config.getRobotstxtServer().allows(webUrl)) {
+		if (!config.getRobotstxtServer().allows(canonicalUrl)) {
 			logger.info("Robots.txt does not allow this seed: " + pageUrl);
 		} else {
+			WebURL webUrl = new WebURL();
+			webUrl.setURL(canonicalUrl);
+			webUrl.setDocid(docid.getId());
+			webUrl.setDepth((short) 0);
 			crawlState.schedule(webUrl);
 		}
 	}
