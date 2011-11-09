@@ -68,13 +68,17 @@ public class CrawlRunner implements Runnable {
 	public void run() {
 		List<WebURL> assignedURLs = new ArrayList<WebURL>(50);
 		while(!finished) {
-			assignedURLs.clear();
-			assignedURLs = new ArrayList<WebURL>(50);
-			urlManager.getNextURLs(50, assignedURLs);
-			
-			for (WebURL url : assignedURLs) {
-				processPage(url);
-				urlManager.setProcessed(url);
+			try {
+				assignedURLs.clear();
+				assignedURLs = new ArrayList<WebURL>(50);
+				urlManager.getNextURLs(50, assignedURLs);
+				
+				for (WebURL url : assignedURLs) {
+					processPage(url);
+					urlManager.setProcessed(url);
+				}
+			} catch (Exception e) {
+				logger.error("Error in CrawlRunner!", e);
 			}
 		}
 	}
