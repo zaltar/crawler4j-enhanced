@@ -1,21 +1,14 @@
 package edu.uci.ics.crawler4j.cache;
 
-import java.util.Calendar;
 import java.util.Set;
 import edu.uci.ics.crawler4j.crawler.Page;
 
 public interface ICacheProvider {
-	
-	public String getCachedETag(String url);
-	public Calendar getLastModified(String url);
-	
 	/*
-	 * This is called when a server responds that our cached page is still valid.
-	 * This function should set any of the page properties that would have been set
-	 * if the page were actually downloaded.  This includes the content type, 
-	 * etag header, last modified header, and the binary or html data depending.
+	 * This function is called to see if a cached version of this page exists.
+	 * Null means no cached version exists.
 	 */
-	public void setupCachedPage(Page page);
+	public CachedPage getCachedPage(String url);
 	
 	/*
 	 * This is called to potentially load cached links from the cache provider. If

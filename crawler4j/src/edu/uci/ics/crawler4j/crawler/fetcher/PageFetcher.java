@@ -50,6 +50,8 @@ import org.apache.http.params.HttpProtocolParamBean;
 import org.apache.http.util.EntityUtils;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
+
+import edu.uci.ics.crawler4j.cache.CachedPage;
 import edu.uci.ics.crawler4j.cache.ICacheProvider;
 import edu.uci.ics.crawler4j.crawler.IdleConnectionMonitorThread;
 import edu.uci.ics.crawler4j.crawler.Page;
@@ -155,20 +157,22 @@ public final class PageFetcher implements IPageFetcher {
 		String toFetchURL = page.getWebURL().getURL();
 		HttpGet get = null;
 		HttpEntity entity = null;
+		CachedPage cPage = null;
 		try {
 			get = new HttpGet(toFetchURL);
 			
 			waitPolitenessDealyIfNeeded();
 			
 			if (cache != null) {
-				String eTag = cache.getCachedETag(toFetchURL);
-				Calendar lastMod = cache.getLastModified(toFetchURL);
-				if (eTag != null) {
-					get.addHeader("If-None-Match", eTag);
-				}
-				
-				if (lastMod != null) {
-					get.addHeader("If-Modified-Since", DateUtils.formatDate(lastMod.getTime()));
+				cPage = cache.getCachedPage(toFetchURL);
+				if (cPage != null) {
+					if (cPage.getETag() != null) {
+						get.addHeader("If-None-Match", cPage.getETag());
+					}
+					
+					if (cPage.getLastModified() != null) {
+						get.addHeader("If-Modified-Since", DateUtils.formatDate(cPage.getLastModified().getTime()));
+					}
 				}
 			}
 			
@@ -188,8 +192,13 @@ public final class PageFetcher implements IPageFetcher {
 				}
 				return PageFetchStatus.Moved;
 			} else if (statusCode == HttpStatus.SC_NOT_MODIFIED) {
-				cache.setupCachedPage(page);
 				page.setFromCache(true);
+				page.setETag(cPage.getETag());
+				page.setLastModified(cPage.getLastModified());
+				page.setContentType(cPage.getContentType());
+				page.setBinaryData(cPage.getBinaryData());
+				page.setHTML(cPage.getHTML());
+				logger.debug("Got page " + toFetchURL + " from cache");
 				return PageFetchStatus.NotModified;
 			} else if (statusCode != HttpStatus.SC_OK) {
 				if (statusCode != HttpStatus.SC_NOT_FOUND) {
