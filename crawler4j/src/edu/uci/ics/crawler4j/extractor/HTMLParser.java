@@ -20,10 +20,11 @@ package edu.uci.ics.crawler4j.extractor;
 import it.unimi.dsi.parser.BulletParser;
 import it.unimi.dsi.parser.callback.TextExtractor;
 import java.net.URL;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
-
 import edu.uci.ics.crawler4j.crawler.Page;
 import edu.uci.ics.crawler4j.crawler.configuration.ICrawlerSettings;
 import edu.uci.ics.crawler4j.url.URLCanonicalizer;
@@ -39,7 +40,7 @@ public class HTMLParser implements IPageParser {
 
 	private final int maxOutLinks;
 
-	private Set<String> urls;
+	private Map<String, String> urls;
 
 	public HTMLParser(ICrawlerSettings config) {
 		bulletParser = new BulletParser();
@@ -52,7 +53,7 @@ public class HTMLParser implements IPageParser {
 
 	@Override
 	public void parse(Page page) {
-		urls = new HashSet<String>();
+		urls = new HashMap<>();
 		String htmlContent = page.getHTML();
 		String contextURL = page.getWebURL().getURL();
 		char[] chars = htmlContent.toCharArray();
@@ -64,8 +65,8 @@ public class HTMLParser implements IPageParser {
 
 		bulletParser.setCallback(linkExtractor);
 		bulletParser.parse(chars);
-		Iterator<String> it = linkExtractor.urls.iterator();
 		
+		String href;
 		String baseURL = linkExtractor.base();
 		if (baseURL != null) {
 			contextURL = baseURL;
@@ -73,40 +74,40 @@ public class HTMLParser implements IPageParser {
 
 		int urlCount = 0;
 		if (linkExtractor.metaRefresh() != null) {
-			urlCount += handleLink(linkExtractor.metaRefresh(), contextURL);
+			href = parseLink(linkExtractor.metaRefresh(), contextURL);
+			if (href != null) {
+				urls.put(href, null);
+				urlCount++;
+			}
 		}
 		
-		while (it.hasNext()) {
-			urlCount += handleLink(it.next(), contextURL);
-			if (urlCount > maxOutLinks) {
-				break;
+		for(Map.Entry<String, String> link : linkExtractor.urls.entrySet()) {
+			href = parseLink(link.getKey(), contextURL);
+			if (href != null) {
+				urls.put(href, link.getValue());
+			
+				if (++urlCount > maxOutLinks) {
+					break;
+				}
 			}
 		}
 	}
 	
-	private int handleLink(String href, String contextURL) {
-		if (href == null)
-			return 0;
-		
+	private String parseLink(String href, String contextURL) {
 		href = href.trim();
-		if (href.length() == 0) {
-			return 0;
-		}
-		
-		if (href.indexOf("javascript:") < 0
+		if (href.length() > 0 && href.indexOf("javascript:") < 0
 				&& href.indexOf("@") < 0) {
 			URL url = URLCanonicalizer.getCanonicalURL(href, contextURL);
 			if (url != null) {
-				urls.add(url.toExternalForm());
-				return 1;
+				return url.toExternalForm();
 			}				
 		}
 		
-		return 0;
+		return null;
 	}
 
 	@Override
-	public Set<String> getLinks() {
+	public Map<String, String> getLinks() {
 		return urls;
 	}
 }

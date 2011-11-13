@@ -359,9 +359,9 @@ public final class PageFetcher implements IPageFetcher {
 			String html = "";
 			if (encoding == null) {
 				int pos = bBuf.position();
-				html = Charset.forName("UTF-8").decode(bBuf).toString();
+				html = Charset.forName("US-ASCII").decode(bBuf).toString();
 				bBuf.position(pos);
-				pos = html.indexOf("<meta http-equiv=\"Content-Type\" content=\"");
+				pos = html.toLowerCase().indexOf("<meta http-equiv=\"content-type\" content=\"");
 				if (pos >= 0) { 
 					int end = html.indexOf("\"", pos + 41);
 					if (end >= 0) {

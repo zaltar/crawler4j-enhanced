@@ -33,7 +33,7 @@ public final class WebURL implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
 	@PrimaryKey
-	private String url;
+	private String url, name;
 	private int docid;
 	private int parentDocid;
 	private short depth;
@@ -98,5 +98,13 @@ public final class WebURL implements Serializable {
 
 	public void setDepth(short depth) {
 		this.depth = depth;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
 	}
 }

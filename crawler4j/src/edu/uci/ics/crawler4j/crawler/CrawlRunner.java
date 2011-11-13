@@ -3,6 +3,7 @@ package edu.uci.ics.crawler4j.crawler;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.apache.log4j.Logger;
@@ -93,7 +94,7 @@ public class CrawlRunner implements Runnable {
 		
 		if (statusCode == PageFetchStatus.OK ||
 				statusCode == PageFetchStatus.NotModified) {
-			Set<String> links = null;
+			Map<String, String> links = null;
 			if (statusCode == PageFetchStatus.NotModified &&
 					cacheProvider != null) {
 				links = cacheProvider.getCachedLinks(page);
@@ -108,7 +109,7 @@ public class CrawlRunner implements Runnable {
 			}
 			
 			if (links != null) {
-				queueLinks(page, links.iterator());
+				queueLinks(page, links);
 			}
 			
 			if (config.getPageVisitedCallback() != null)
@@ -145,33 +146,30 @@ public class CrawlRunner implements Runnable {
 		}
 	}
 	
-	private void queueLinks(final Page page, Iterator<String> it) {
+	private void queueLinks(final Page page, Map<String, String> links) {
 		List<WebURL> toSchedule = new ArrayList<WebURL>();
 		List<WebURL> toList = new ArrayList<WebURL>();
-		while (it.hasNext()) {
-			String url = it.next();
-			if (url != null) {
+		String localUrl = page.getWebURL().getURL();
+		WebURL webURL;
+		String url;
+		for (Map.Entry<String, String> link : links.entrySet()) {
+			url = link.getKey();
+			if (!url.equals(localUrl)) {
+				webURL = new WebURL();
+				webURL.setURL(url);
+				webURL.setName(link.getValue());
+				webURL.setDocid(-1);
+				webURL.setParentDocid(page.getWebURL().getDocid());
+				webURL.setDepth((short) (page.getWebURL().getDepth() + 1));
+				toList.add(webURL);
+				
 				if ((visitValidator ==  null || visitValidator.canVisit(url)) &&
 						robotsChecker.allows(url) &&
 						(MAX_CRAWL_DEPTH == -1 || page.getWebURL().getDepth() < MAX_CRAWL_DEPTH)) {
 					DocID newdocid = docIDServer.getNewOrExistingDocID(url);
-					if (!newdocid.isNew()) {
-						//Ignore links to ourself
-						if (newdocid.getId() != page.getWebURL().getDocid()) {
-							WebURL webURL = new WebURL();
-							webURL.setURL(url);
-							webURL.setDocid(newdocid.getId());
-							toList.add(webURL);
-						}
-					} else {
-						WebURL webURL = new WebURL();
-						webURL.setURL(url);
-						webURL.setDocid(-1);
-						webURL.setParentDocid(page.getWebURL().getDocid());
-						webURL.setDepth((short) (page.getWebURL().getDepth() + 1));
-						webURL.setDocid(newdocid.getId());
+					webURL.setDocid(newdocid.getId());
+					if (newdocid.isNew()) {
 						toSchedule.add(webURL);
-						toList.add(webURL);
 					}
 				}
 			}

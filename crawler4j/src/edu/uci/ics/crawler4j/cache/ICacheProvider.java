@@ -1,5 +1,6 @@
 package edu.uci.ics.crawler4j.cache;
 
+import java.util.Map;
 import java.util.Set;
 import edu.uci.ics.crawler4j.crawler.Page;
 
@@ -15,5 +16,5 @@ public interface ICacheProvider {
 	 * links are not cached, returning null will cause the default parser to reparse
 	 * the page content.
 	 */
-	public Set<String> getCachedLinks(Page page);
+	public Map<String, String> getCachedLinks(Page page);
 }
