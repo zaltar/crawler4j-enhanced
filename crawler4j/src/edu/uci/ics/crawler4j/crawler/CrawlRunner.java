@@ -1,13 +1,9 @@
 package edu.uci.ics.crawler4j.crawler;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-
 import org.apache.log4j.Logger;
-
 import edu.uci.ics.crawler4j.cache.ICacheProvider;
 import edu.uci.ics.crawler4j.crawler.CrawlerController.URLManager;
 import edu.uci.ics.crawler4j.crawler.configuration.ICrawlerSettings;

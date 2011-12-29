@@ -22,7 +22,6 @@ import java.util.regex.Pattern;
 import edu.uci.ics.crawler4j.crawler.IPageVisitValidator;
 import edu.uci.ics.crawler4j.crawler.IPageVisited;
 import edu.uci.ics.crawler4j.crawler.Page;
-import edu.uci.ics.crawler4j.url.WebURL;
 import edu.uci.ics.crawler4j.util.IO;
 
 /**

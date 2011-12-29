@@ -1,7 +1,6 @@
 package edu.uci.ics.crawler4j.cache;
 
 import java.util.Map;
-import java.util.Set;
 import edu.uci.ics.crawler4j.crawler.Page;
 
 public interface ICacheProvider {
