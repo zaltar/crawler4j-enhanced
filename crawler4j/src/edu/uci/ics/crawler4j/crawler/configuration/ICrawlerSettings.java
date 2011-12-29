@@ -9,60 +9,32 @@ import edu.uci.ics.crawler4j.robotstxt.RobotstxtServer;
 import edu.uci.ics.crawler4j.cache.ICacheProvider;
 
 public interface ICrawlerSettings extends Cloneable {
-
-	public boolean getIncludeBinaryContent();
-	
-	public short getMaxDepth();
-	
-	public boolean getFollowRedirects();
-	
-	public int getMaxOutlinks();
-	
-	public boolean getIncludeImages();
-	
-	public int getPolitenessDelay();
-	
-	public int getMaxDownloadSize();
-	
-	public boolean getShow404Pages();
-	
-	public String getUserAgent();
-	
-	public int getSocketTimeout();
-	
-	public int getConnectionTimeout();
-	
-	public int getMaxConnectionsPerHost();
-	
-	public int getMaxTotalConnections();
-	
-	public boolean getAllowHttps();
-	
-	public boolean getEnableResume();
-	
-	public String getStorageFolder();
-	
-	public int getMaxPagesToFetch();
-	
-	public int getRobotstxtMapSize();
-	
-	public boolean getObeyRobotstxt();
-	
-	public int getNumberOfCrawlerThreads();
-	
-	public IPageVisitValidator getPageVisitValidator();
-	
-	public PageParserManager getPageParserManager();
-	
-	public ICrawlState getCrawlState();
-	
-	public IPageFetcher getPageFetcher();
-	
-	public RobotstxtServer getRobotstxtServer();
-	
-	public IPageVisited getPageVisitedCallback();
-	
-	public ICacheProvider getCacheProvider();
-	
-	public Object clone() throws CloneNotSupportedException;
+	boolean getIncludeBinaryContent();
+	short getMaxDepth();
+	boolean getFollowRedirects();
+	int getMaxOutlinks();
+	boolean getIncludeImages();
+	int getPolitenessDelay();
+	int getMaxDownloadSize();
+	boolean getShow404Pages();
+	String getUserAgent();
+	int getSocketTimeout();
+	int getConnectionTimeout();
+	int getMaxConnectionsPerHost();
+	int getMaxTotalConnections();
+	boolean getAllowHttps();
+	boolean getEnableResume();
+	String getStorageFolder();
+	int getMaxPagesToFetch();
+	int getRobotstxtMapSize();
+	boolean getObeyRobotstxt();
+	int getNumberOfCrawlerThreads();
+	IPageVisitValidator getPageVisitValidator();
+	PageParserManager getPageParserManager();
+	ICrawlState getCrawlState();
+	IPageFetcher getPageFetcher();
+	RobotstxtServer getRobotstxtServer();
+	IPageVisited getPageVisitedCallback();
+	ICacheProvider getCacheProvider();
+	Object clone() throws CloneNotSupportedException;
 }
