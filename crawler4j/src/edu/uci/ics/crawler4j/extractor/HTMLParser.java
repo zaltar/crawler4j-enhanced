@@ -21,10 +21,7 @@ import it.unimi.dsi.parser.BulletParser;
 import it.unimi.dsi.parser.callback.TextExtractor;
 import java.net.URL;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 import edu.uci.ics.crawler4j.crawler.Page;
 import edu.uci.ics.crawler4j.crawler.configuration.ICrawlerSettings;
 import edu.uci.ics.crawler4j.url.URLCanonicalizer;
@@ -34,25 +31,22 @@ import edu.uci.ics.crawler4j.url.URLCanonicalizer;
  */
 
 public class HTMLParser implements IPageParser {
-	private BulletParser bulletParser;
-	private TextExtractor textExtractor;
-	private HTMLLinkExtractor linkExtractor;
-
 	private final int maxOutLinks;
-
+	private final ICrawlerSettings config;
 	private Map<String, String> urls;
 
 	public HTMLParser(ICrawlerSettings config) {
-		bulletParser = new BulletParser();
-		textExtractor = new TextExtractor();
-		linkExtractor = new HTMLLinkExtractor();
-		
+		this.config = config;
 		maxOutLinks = config.getMaxOutlinks();
-		linkExtractor.setIncludeImagesSources(config.getIncludeImages());
 	}
 
 	@Override
 	public void parse(Page page) {
+		final BulletParser bulletParser = new BulletParser();
+		final TextExtractor textExtractor = new TextExtractor();
+		final HTMLLinkExtractor linkExtractor = new HTMLLinkExtractor();
+		linkExtractor.setIncludeImagesSources(config.getIncludeImages());
+		
 		urls = new HashMap<>();
 		String htmlContent = page.getHTML();
 		String contextURL = page.getWebURL().getURL();
